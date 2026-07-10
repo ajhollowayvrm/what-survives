@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>What Survives — autoplay soak test</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+  <!-- Dev tool: the party plays itself with random valid actions so you can
+       eyeball the battle UI / balance without clicking. ?battle=warden|sparring
+       &mode=menu drives the actual command menu with synthetic clicks. -->
+  <div id="title-screen" class="screen hidden"><div class="title-inner"><div id="battle-select"></div></div></div>
+
+  <div id="battle-screen" class="screen hidden">
+    <div id="queue-bar">
+      <span class="queue-label">NEXT</span>
+      <div id="queue"></div>
+      <button id="speed-btn" title="Toggle animation speed">1&times;</button>
+    </div>
+    <div id="stage">
+      <div id="battlefield"><div id="enemy-zone"></div></div>
+      <div id="log-panel"><div id="log"></div></div>
+    </div>
+    <div id="bottom">
+      <div id="party-row"></div>
+      <div id="command-panel"><div id="command-title"></div><div id="command-menu"></div></div>
+    </div>
+    <div id="banner" class="hidden"></div>
+    <div id="cinematic" class="hidden"><div id="cin-name"></div><div id="cin-cue"></div></div>
+    <div id="end-overlay" class="hidden">
+      <div id="end-text"></div>
+      <div id="end-buttons"><button id="retry-btn">Retry</button><button id="title-btn">Return to Title</button></div>
+    </div>
+    <div id="flash"></div>
+  </div>
+
+  <script src="../js/data/elements.js"></script>
+  <script src="../js/engine/formulas.js"></script>
+  <script src="../js/data/characters.js"></script>
+  <script src="../js/data/enemies.js"></script>
+  <script src="../js/engine/battle.js"></script>
+  <script src="../js/ui/ui.js"></script>
+  <script>
+    (async function () {
+      const WS = globalThis.WS;
+      const battleId = new URLSearchParams(location.search).get('battle') || 'warden';
+      document.querySelector('#battle-screen').classList.remove('hidden');
+
+      const ui = new WS.UI();
+      ui.speed = 2.5;
+      const battle = new WS.Battle(WS.BATTLES[battleId], { onEvent: ui.onEvent });
+      ui.setup(battle);
+      battle.log(`AUTOPLAY — ${WS.BATTLES[battleId].name}`, 'turn');
+
+      function randomAction(actor) {
+        const cmds = battle.commandsFor(actor);
+        const options = [];
+        for (const c of cmds.skills) {
+          if (!c.ok) continue;
+          const targets = battle.validTargets(actor, c.skill);
+          if (c.skill.target === 'enemy' || c.skill.target === 'ally') {
+            if (!targets.length) continue;
+            options.push({ type: 'skill', skillId: c.skill.id, targetUid: targets[Math.floor(Math.random() * targets.length)].uid });
+          } else options.push({ type: 'skill', skillId: c.skill.id });
+        }
+        if (cmds.awaken && cmds.awaken.ok) options.push({ type: 'awaken' });
+        if (cmds.attune && !actor.attuned) options.push({ type: 'attune', element: cmds.attune[Math.floor(Math.random() * 6)] });
+        return options[Math.floor(Math.random() * options.length)];
+      }
+
+      // mode=menu: choose through the real command menu with synthetic clicks
+      async function menuAction(actor) {
+        const p = ui.promptAction(actor);
+        let done = false;
+        p.then(() => { done = true; });
+        while (!done) {
+          await new Promise((r) => setTimeout(r, 30));
+          const target = document.querySelector('.targetable');
+          if (target) { target.click(); continue; }
+          let btns = [...document.querySelectorAll('.cmd-btn:not(:disabled):not(.back)')];
+          if (!btns.length) btns = [...document.querySelectorAll('.cmd-btn:not(:disabled)')]; // dead-end submenu: back out
+          if (btns.length) btns[Math.floor(Math.random() * btns.length)].click();
+        }
+        return p;
+      }
+      const useMenu = new URLSearchParams(location.search).get('mode') === 'menu';
+
+      while (battle.state === 'active') {
+        const actor = battle.beginTurn();
+        await ui.playEvents();
+        ui.renderAll();
+        ui.markActive(actor);
+        await ui.sleep(400);
+        const action = battle.isPlayerControlled(actor)
+          ? (useMenu ? await menuAction(actor) : randomAction(actor))
+          : battle.aiAct(actor);
+        battle.act(actor, action);
+        await ui.playEvents();
+        if (battle.state === 'active') { battle.endTurn(actor); await ui.playEvents(); }
+        ui.renderAll();
+      }
+      ui.markActive(null);
+      ui.showEnd(battle.state, () => location.reload(), () => location.reload());
+    })();
+  </script>
+</body>
+</html>

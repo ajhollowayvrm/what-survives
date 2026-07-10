@@ -4,9 +4,63 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>What Survives — Combat Prototype</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <h1>What Survives</h1>
-  <p>hello world — pipeline live.</p>
+
+  <div id="title-screen" class="screen">
+    <div class="title-inner">
+      <p class="title-over">A PARTY-BASED JRPG — COMBAT PROTOTYPE</p>
+      <h1>WHAT SURVIVES</h1>
+      <p class="tagline">Read the weakness. Feed the gauge. Decide what the spirit becomes.</p>
+      <div id="battle-select"></div>
+      <p class="hint">CTB turn order &middot; Rupture = opposite element, 2&times; damage + gauge &middot; at 100: Awaken or Amplify</p>
+    </div>
+  </div>
+
+  <div id="battle-screen" class="screen hidden">
+    <div id="queue-bar">
+      <span class="queue-label">NEXT</span>
+      <div id="queue"></div>
+      <button id="speed-btn" title="Toggle animation speed">1&times;</button>
+    </div>
+
+    <div id="stage">
+      <div id="battlefield">
+        <div id="enemy-zone"></div>
+      </div>
+      <div id="log-panel"><div id="log"></div></div>
+    </div>
+
+    <div id="bottom">
+      <div id="party-row"></div>
+      <div id="command-panel">
+        <div id="command-title"></div>
+        <div id="command-menu"></div>
+      </div>
+    </div>
+
+    <div id="banner" class="hidden"></div>
+    <div id="cinematic" class="hidden">
+      <div id="cin-name"></div>
+      <div id="cin-cue"></div>
+    </div>
+    <div id="end-overlay" class="hidden">
+      <div id="end-text"></div>
+      <div id="end-buttons">
+        <button id="retry-btn">Retry</button>
+        <button id="title-btn">Return to Title</button>
+      </div>
+    </div>
+    <div id="flash"></div>
+  </div>
+
+  <script src="js/data/elements.js"></script>
+  <script src="js/engine/formulas.js"></script>
+  <script src="js/data/characters.js"></script>
+  <script src="js/data/enemies.js"></script>
+  <script src="js/engine/battle.js"></script>
+  <script src="js/ui/ui.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>
