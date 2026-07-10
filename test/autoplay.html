@@ -38,6 +38,7 @@
   <script src="../js/engine/formulas.js"></script>
   <script src="../js/data/characters.js"></script>
   <script src="../js/data/enemies.js"></script>
+  <script src="../js/data/combos.js"></script>
   <script src="../js/engine/battle.js"></script>
   <script src="../js/ui/ui.js"></script>
   <script>
@@ -65,6 +66,13 @@
         }
         if (cmds.awaken && cmds.awaken.ok) options.push({ type: 'awaken' });
         if (cmds.attune && !actor.attuned) options.push({ type: 'attune', element: cmds.attune[Math.floor(Math.random() * 6)] });
+        for (const c of battle.combosFor(actor)) {
+          if (!c.ok) continue;
+          if (c.combo.target === 'enemy') {
+            const foes = battle.foesOf(actor);
+            options.push({ type: 'combo', comboId: c.combo.id, targetUid: foes[Math.floor(Math.random() * foes.length)].uid });
+          } else options.push({ type: 'combo', comboId: c.combo.id });
+        }
         return options[Math.floor(Math.random() * options.length)];
       }
 

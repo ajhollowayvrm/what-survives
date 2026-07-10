@@ -7,6 +7,7 @@ require('../js/data/elements.js');
 require('../js/engine/formulas.js');
 require('../js/data/characters.js');
 require('../js/data/enemies.js');
+require('../js/data/combos.js');
 require('../js/engine/battle.js');
 
 const WS = globalThis.WS;
@@ -104,16 +105,62 @@ console.log('— Rage pacing / Calm Down —');
 
   // Calm Down vents 40 and feeds Earl 20
   cinne.gauge.value = 70;
-  b.doSkill(earl, 'calm_down', cinne.uid);
+  b.act(earl, { type: 'combo', comboId: 'calm_down' });
   check('Calm Down vents Rage to 30', cinne.gauge.value, 30);
   check('Calm Down gives Earl +20 Resonance', earl.gauge.value >= 20, true);
 
   // prevention, not rescue: unusable during Bloodrun
   b.addGauge(cinne, 100, 'test');
   check('Cinne Seizes at 100', b.hasStatus(cinne, 'bloodrun'), true);
-  const cd = b.commandsFor(earl).skills.find((c) => c.skill.id === 'calm_down');
+  const cd = b.combosFor(earl).find((c) => c.combo.id === 'calm_down');
   check('Calm Down blocked during Bloodrun', cd.ok, false);
   check('…with the right reason', cd.why, 'She is beyond reach');
+}
+
+console.log('— combos —');
+{
+  F.setRng(seeded(11));
+  const events = [];
+  const b = new WS.Battle(WS.BATTLES.sparring, { onEvent: (e) => events.push(e) });
+  const siren = b.party.find((u) => u.defId === 'siren');
+  const cinne = b.party.find((u) => u.defId === 'cinne');
+  const earl = b.party.find((u) => u.defId === 'earl');
+  const grunt = b.enemies[0];
+
+  // gating: Friendstrike needs 15 gauge from BOTH
+  siren.gauge.value = 20; earl.gauge.value = 5;
+  let fs = b.combosFor(siren).find((c) => c.combo.id === 'friendstrike');
+  check('Friendstrike gated on Earl\'s gauge', fs.ok, false);
+  earl.gauge.value = 20;
+  fs = b.combosFor(siren).find((c) => c.combo.id === 'friendstrike');
+  check('Friendstrike ready when both have 15', fs.ok, true);
+
+  // Siren's Tide finds the Ember weakness → BOTH hits guaranteed Ruptures,
+  // even Earl's unattuned (elementless) one
+  events.length = 0;
+  b.act(siren, { type: 'combo', comboId: 'friendstrike', targetUid: grunt.uid });
+  const rup = events.filter((e) => e.type === 'damage' && e.rupture);
+  check('Friendstrike: both hits Ruptured', rup.length, 2);
+  check('Friendstrike is initiator-listed for Earl too',
+    !!b.combosFor(earl).find((c) => c.combo.id === 'friendstrike'), true);
+
+  // Watch and Learn: 5 hits (3 Cinne + Earl + Siren), all three pay 30
+  siren.gauge.value = 40; earl.gauge.value = 35; cinne.gauge.value = 45;
+  events.length = 0;
+  b.act(cinne, { type: 'combo', comboId: 'watch_and_learn', targetUid: grunt.uid });
+  const hits = events.filter((e) => e.type === 'damage');
+  check('Watch and Learn lands 5 hits', hits.length >= 4, true); // <5 only if grunt dies mid-chain
+  check('Watch and Learn spent Cinne\'s Rage', cinne.gauge.value < 45, true);
+
+  // guardian vow: attacks aimed at Earl strike Cinne instead
+  cinne.gauge.value = 35;
+  b.act(cinne, { type: 'combo', comboId: 'wont_let_them' });
+  check('Earl is Guarded', b.hasStatus(earl, 'guarded'), true);
+  check('Cinne holds her Vow', b.hasStatus(cinne, 'vow'), true);
+  const earlHp = earl.hp, cinneHp = cinne.hp;
+  b.act(grunt, { type: 'skill', skillId: 'construct_basic', targetUid: earl.uid });
+  check('the hit redirected to Cinne', earl.hp === earlHp && cinne.hp < cinneHp, true);
+  check('the attacker is marked as having hurt Earl', grunt.hurtEarl, true);
 }
 
 console.log('— Earl attune / rupture refund —');
@@ -146,6 +193,13 @@ function randomAction(b, actor) {
   }
   if (cmds.awaken && cmds.awaken.ok) options.push({ type: 'awaken' });
   if (cmds.attune && !actor.attuned) options.push({ type: 'attune', element: cmds.attune[Math.floor(r() * cmds.attune.length)] });
+  for (const c of b.combosFor(actor)) {
+    if (!c.ok) continue;
+    if (c.combo.target === 'enemy') {
+      const foes = b.foesOf(actor);
+      options.push({ type: 'combo', comboId: c.combo.id, targetUid: foes[Math.floor(r() * foes.length)].uid });
+    } else options.push({ type: 'combo', comboId: c.combo.id });
+  }
   return options[Math.floor(r() * options.length)];
 }
 

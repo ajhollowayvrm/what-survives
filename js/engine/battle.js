@@ -206,7 +206,7 @@
         : this.stat(attacker, 'FOC') + attacker.arteBonus * wMult;
 
       const el = this.resolveElement(attacker, skill);
-      const aff = WS.affinity(el, this.elementOf(defender));
+      const aff = (ctx && ctx.affinityOverride) || WS.affinity(el, this.elementOf(defender));
 
       // guard piercing: skill-innate + Opening mark
       let pierce = 0;
@@ -218,9 +218,12 @@
       const def = this.stat(defender, phys ? 'GRD' : 'WRD') * (1 - pierce);
 
       const comedown = this.hasStatus(attacker, 'comedown');
+      // her vow: bonus crit/damage vs anyone who has hurt Earl
+      const vow = this.hasStatus(attacker, 'vow') && defender.hurtEarl;
       let critBonus = (skill.critBonus || 0)
         + (awaken && awaken.data.critBonus ? awaken.data.critBonus : 0)
-        + (this.hasStatus(attacker, 'bloodrun') ? 50 : 0);
+        + (this.hasStatus(attacker, 'bloodrun') ? 50 : 0)
+        + (vow ? 15 : 0);
       const crit = comedown ? false
         : (guaranteedCrit || F.rollCrit(this.stat(attacker, 'LCK'), critBonus));
 
@@ -230,6 +233,8 @@
         extraMult *= 1 + attacker.gauge.value * 0.005;
       }
       if (ctx.isAmplify && attacker.ampBoost !== 1) extraMult *= attacker.ampBoost;
+      if (ctx.extraMult) extraMult *= ctx.extraMult;
+      if (vow) extraMult *= 1.25;
       if (comedown) extraMult *= 0.8;
       // Watermark: an awakened protector shields the defender's side
       for (const a of this.alliesOf(defender)) {
@@ -243,6 +248,7 @@
     }
 
     applyDamage(target, hit, attacker) {
+      if (attacker && attacker.side === 'enemy' && target.defId === 'earl') attacker.hurtEarl = true;
       let dmg = hit.dmg, absorbed = 0;
       if (target.shield > 0) {
         absorbed = Math.min(target.shield, dmg);
@@ -327,10 +333,79 @@
       return []; // AoE/self need no target pick
     }
 
+    // ---------- combos ----------
+    comboUnit(defId) { return this.party.find((u) => u.defId === defId); }
+
+    combosFor(actor) {
+      return (WS.COMBOS || [])
+        .filter((c) => c.initiators.includes(actor.defId))
+        .map((combo) => {
+          let ok = true, why = '';
+          for (const id of combo.participants) {
+            const u = this.comboUnit(id);
+            if (!u || u.hp <= 0) { ok = false; why = `${u ? u.name : id} is down`; break; }
+            if (this.hasStatus(u, 'bloodrun')) { ok = false; why = combo.bloodrunWhy || `${u.name} is beyond reach`; break; }
+            const cost = combo.gaugeCost[id];
+            if (cost && u.gauge.value < cost) { ok = false; why = `Needs ${cost} ${u.gauge.label} (${u.name})`; break; }
+          }
+          return { combo, ok, why };
+        });
+    }
+
+    doCombo(actor, comboId, targetUid) {
+      const combo = WS.COMBOS.find((c) => c.id === comboId);
+      const units = combo.participants.map((id) => this.comboUnit(id));
+      for (const u of units) {
+        const cost = combo.gaugeCost[u.defId];
+        if (cost) this.addGauge(u, -cost, 'combo');
+      }
+      this.emit('combo', { uid: actor.uid, name: combo.name, cue: combo.cue });
+      this.log(`${units.map((u) => u.name).join(' + ')} — ${combo.name}!`, 'amplify');
+
+      const target = targetUid ? this.unit(targetUid) : null;
+      if (combo.hits && target && target.hp > 0) {
+        let affinityOverride = null;
+        if (combo.guaranteedRuptureIfEitherWeak) {
+          const defEl = this.elementOf(target);
+          const els = combo.hits.map((h) => this.resolveElement(this.comboUnit(h.by), h));
+          if (defEl && els.some((el) => el && WS.ELEMENTS[defEl].opposite === el)) {
+            affinityOverride = { mult: 2.0, kind: 'rupture' };
+          }
+        }
+        const ctx = { affinityOverride, extraMult: combo.coordBonus };
+        for (const h of combo.hits) {
+          const dealer = this.comboUnit(h.by);
+          if (!dealer || dealer.hp <= 0) continue;
+          for (let i = 0; i < (h.times || 1); i++) {
+            if (target.hp <= 0) break;
+            this.applyDamage(target, this.computeHit(dealer, target, h, ctx), dealer);
+          }
+        }
+      }
+
+      if (combo.effect === 'guardian') {
+        const [cinne, earl] = units;
+        this.addStatus(earl, { id: 'guarded', name: 'Guarded', turns: combo.turns, data: { by: cinne.uid } });
+        this.addStatus(cinne, { id: 'vow', name: 'Vow', turns: combo.turns, data: {} });
+        this.log(`${cinne.name} takes a guardian stance over ${earl.name}.`, 'buff');
+      }
+      if (combo.effect === 'ventRage') {
+        const [earl, cinne] = units;
+        this.addGauge(cinne, -combo.vent, 'vented');
+        this.addGauge(earl, combo.selfGauge, 'combo');
+        this.log(`${earl.name} reaches his sister. ${cinne.name}'s Rage falls to ${Math.floor(cinne.gauge.value)}.`, 'buff');
+      }
+
+      const awaken = this.getStatus(actor, 'awaken');
+      this.advance(actor, combo.weight * (awaken && awaken.data.weightMult ? awaken.data.weightMult : 1));
+      this.checkEnd();
+    }
+
     // ---------- actions ----------
     act(actor, action) {
       if (action.type === 'awaken') return this.doAwaken(actor);
       if (action.type === 'attune') return this.doAttune(actor, action.element);
+      if (action.type === 'combo') return this.doCombo(actor, action.comboId, action.targetUid);
       return this.doSkill(actor, action.skillId, action.targetUid);
     }
 
@@ -375,9 +450,19 @@
       // damage
       let anyRupture = false;
       if (skill.power) {
-        const targets = skill.target === 'allEnemies'
+        let targets = skill.target === 'allEnemies'
           ? this.foesOf(actor)
           : [this.unit(targetUid)].filter((u) => u && u.hp > 0);
+        // guardian stance: single-target enemy attacks aimed at the ward hit her instead
+        targets = targets.map((t) => {
+          const g = this.getStatus(t, 'guarded');
+          if (!g || actor.side === t.side || skill.target === 'allEnemies') return t;
+          if (actor.side === 'enemy') actor.hurtEarl = true; // they tried
+          const guardian = this.unit(g.data.by);
+          if (!guardian || guardian.hp <= 0 || this.hasStatus(guardian, 'bloodrun')) return t;
+          this.log(`${guardian.name} steps in front of ${t.name}!`, 'buff');
+          return guardian;
+        });
         for (const t of targets) {
           const hits = typeof skill.hits === 'function' ? skill.hits(actor) : (skill.hits || 1);
           for (let i = 0; i < hits; i++) {
@@ -476,13 +561,6 @@
             this.addStatus(t, { id: 'grd_down', name: 'Guard Down', turns: e.turns, data: { stats: e.stats } });
           }
           this.log('Enemy Guard crumbles.', 'buff');
-          break;
-        case 'ventRage':
-          if (target && target.gauge && target.gauge.type === 'rage') {
-            this.addGauge(target, -e.amount, 'vented');
-            this.addGauge(actor, e.selfGauge, 'combo');
-            this.log(`"Calm down." — ${actor.name} reaches his sister. ${target.name}'s Rage falls to ${Math.floor(target.gauge.value)}.`, 'buff');
-          }
           break;
         case 'gaugeGift':
           if (target && this.supportable(target) && target.gauge) {

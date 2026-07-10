@@ -12,7 +12,7 @@
 
   const DELAYS = {
     action: 220, damage: 340, rupture: 650, heal: 180, freeze: 300, attune: 450,
-    awaken: 1100, amplify: 2100, aspect: 1100, bloodrun: 1400, bloodrunEnd: 900,
+    awaken: 1100, amplify: 2100, combo: 1500, aspect: 1100, bloodrun: 1400, bloodrunEnd: 900,
     ko: 550, status: 120, end: 500,
   };
 
@@ -251,6 +251,14 @@
             this.flash();
             break;
           }
+          case 'combo': {
+            $('#cin-name').textContent = e.name;
+            $('#cin-cue').textContent = e.cue || e.name;
+            $('#cinematic').classList.remove('hidden');
+            await this.sleep(DELAYS.combo);
+            $('#cinematic').classList.add('hidden');
+            break;
+          }
           case 'aspect': {
             const el = WS.ELEMENTS[e.element];
             this.banner(`ASPECT SHIFT — ${el.icon} ${el.name.toUpperCase()}`, 'aspect-b',
@@ -324,12 +332,6 @@
           .addEventListener('click', () => this.skillMenu(actor, artes, 'Artes', (sk) => `${sk.mp} MP`));
       }
 
-      for (const c of cmds.skills.filter((x) => (x.skill.tags || []).includes('combo'))) {
-        const btn = this.menuButton(c.skill.name, 'combo',
-          { disabled: !c.ok, why: c.why, title: c.skill.desc || '' });
-        if (c.ok) btn.addEventListener('click', () => this.pickTarget(actor, c.skill, () => this.rootMenu(actor)));
-      }
-
       const gaugeSkills = cmds.skills.filter((c) => c.skill.gauge != null);
       if (cmds.awaken || gaugeSkills.length) {
         const g = actor.gauge;
@@ -342,6 +344,25 @@
           title: 'Full action: set your element (+25 gauge). You can Rupture only while attuned.',
         }).addEventListener('click', () => this.attuneMenu(actor, cmds.attune));
       }
+
+      const combos = b.combosFor(actor);
+      if (combos.length) {
+        this.menuButton('Combos', '✦', { title: 'Joint moves — relationships as mechanics' })
+          .addEventListener('click', () => this.comboMenu(actor, combos));
+      }
+    }
+
+    comboMenu(actor, combos) {
+      this.setMenu(`${actor.name} — Combos`);
+      for (const c of combos) {
+        const btn = this.menuButton(c.combo.name, c.combo.costLabel,
+          { disabled: !c.ok, why: c.why, title: c.combo.desc || '' });
+        if (c.ok) btn.addEventListener('click', () => {
+          if (c.combo.target === 'enemy') this.pickTarget(actor, c.combo, () => this.comboMenu(actor, combos), true);
+          else this._resolve({ type: 'combo', comboId: c.combo.id });
+        });
+      }
+      this.menuButton('◂ Back', null, { back: true }).addEventListener('click', () => this.rootMenu(actor));
     }
 
     skillMenu(actor, list, title, costFn) {
@@ -394,10 +415,13 @@
       else this._resolve({ type: 'skill', skillId: skill.id });
     }
 
-    pickTarget(actor, skill, backFn) {
+    pickTarget(actor, skill, backFn, isCombo) {
+      const action = (uid) => isCombo
+        ? { type: 'combo', comboId: skill.id, targetUid: uid }
+        : { type: 'skill', skillId: skill.id, targetUid: uid };
       const targets = this.battle.validTargets(actor, skill);
       if (targets.length === 1) {
-        this._resolve({ type: 'skill', skillId: skill.id, targetUid: targets[0].uid });
+        this._resolve(action(targets[0].uid));
         return;
       }
       this.setMenu(`${skill.name} — choose target`);
@@ -406,7 +430,7 @@
       for (const t of targets) {
         const card = this.cards[t.uid];
         card.classList.add('targetable');
-        const h = () => this._resolve({ type: 'skill', skillId: skill.id, targetUid: t.uid });
+        const h = () => this._resolve(action(t.uid));
         card.addEventListener('click', h);
         this._targetHandlers.push([card, h]);
       }

@@ -87,9 +87,16 @@ Everything numeric is in `js/data/` — tune there, logic never has to change.
    it half-refunds its own 100 cost).
 5b. **Rage accrues only from Cinne's own actions** (playtest feedback: the
    +8-per-hit-taken on top of her action rate seized her too fast — she now
-   maxes in ~7 unmanaged turns of her own). **Calm Down (Earl → Cinne) is
-   pulled forward from the milestone-9 combo roster** as the vent tool:
-   Rage −40, Earl +20 Resonance, and it cannot reach her during Bloodrun.
+   maxes in ~7 unmanaged turns of her own).
+5c. **The combo roster is in** (milestone 9, pulled forward), under a
+   **Combos** root menu. Costs are my first pass: Friendstrike 15 gauge
+   each; Watch and Learn 30 each (+25% coordination); "I Won't Let Them
+   Hurt You Again" 30 Rage (2-turn redirect + vengeance bonus vs anyone
+   who has hurt Earl); Calm Down free (its cost is Earl's turn). Combos are
+   blocked if any participant is down or Seized; the Mael pair waits for
+   Mael. Story-gating/unlocks deferred — everything is available in the
+   prototype. Friendstrike's guaranteed Rupture applies to *both* hits if
+   either element finds the weakness.
 6. **Earl's Amplify is named `[Prismbreak]`** and his Awaken `[Sigil Orbit]`
    — bracketed placeholders per the docs' convention, cue line "Mmhm!".
 7. Not yet modeled from the docs: elemental status afflictions (so Earl's
@@ -97,7 +104,7 @@ Everything numeric is in `js/data/` — tune there, logic never has to change.
 
 ## What's next (handoff milestone 9+)
 
-- Mael (Defiance gauge, Break/Unshackle) — the answer to Seal
-- Remaining combo moves (Friendstrike, Watch and Learn…) — Calm Down is in
+- Mael (Defiance gauge, Break/Unshackle) — the answer to Seal — plus his
+  two combos ("You don't have to be anything", "You're not like them")
 - Status effect set (Burn/Poison/Weaken/Guard Break) and elemental statuses
 - Amplify cost decay with attunement; bench/reserve system
