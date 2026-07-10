@@ -35,7 +35,7 @@
       weaponAtk: o.def.weaponAtk, arteBonus: o.def.arteBonus,
       element: o.def.element || null, attuned: null,
       gauge: o.gauge, shield: 0,
-      statuses: [], nextTurn: 0, turnCount: 0,
+      statuses: [], nextTurn: 0, turnCount: 0, cooldowns: {},
       storedTickMult: 1, pendingTickMult: null,
       ampBoost: 1, aspectIndex: 0, lastSealTurn: -99,
     };
@@ -47,6 +47,7 @@
       this.state = 'active';
       this.current = null;
       this.totems = { party: null, enemy: null };
+      this.comboCooldowns = {};
 
       this.party = WS.CHARACTERS.map((c) => makePartyUnit(c, battleDef.partyLevel));
       this.enemies = battleDef.enemies.map((id) => makeEnemyUnit(WS.ENEMIES[id]));
@@ -92,6 +93,7 @@
       this.current = actor;
       actor.turnCount++;
       this.emit('turnStart', { uid: actor.uid });
+      this.tickCooldowns(actor);
 
       const totem = this.totems[actor.side];
       if (totem && this.supportable(actor)) {
@@ -107,6 +109,19 @@
     }
 
     isPlayerControlled(u) { return u.side === 'party' && !this.hasStatus(u, 'bloodrun'); }
+
+    // skill cooldowns tick on the owner's turns; combo cooldowns are shared
+    // and tick on any participant's turn
+    tickCooldowns(actor) {
+      for (const id of Object.keys(actor.cooldowns)) {
+        if (--actor.cooldowns[id] <= 0) delete actor.cooldowns[id];
+      }
+      for (const combo of WS.COMBOS || []) {
+        if (this.comboCooldowns[combo.id] > 0 && combo.participants.includes(actor.defId)) {
+          if (--this.comboCooldowns[combo.id] <= 0) delete this.comboCooldowns[combo.id];
+        }
+      }
+    }
 
     endTurn(actor) {
       // durations tick down on the holder's own turn
@@ -168,8 +183,8 @@
       this.log(`${u.name}'s Rage crests — BLOODRUN! She is beyond reach.`, 'bloodrun');
     }
 
-    onHitDealt(attacker, { crit, rupture }) {
-      if (attacker.gauge) {
+    onHitDealt(attacker, { crit, rupture, selfFeed }) {
+      if (selfFeed && attacker.gauge) {
         if (attacker.gauge.type === 'rage') this.addGauge(attacker, crit ? 12 : 4, 'hit');
         else if (attacker.gauge.type === 'resonance') {
           this.addGauge(attacker, 4 + (rupture ? 15 : 0), rupture ? 'rupture' : 'hit');
@@ -244,7 +259,9 @@
 
       const power = typeof skill.power === 'function' ? skill.power(attacker) : skill.power;
       const dmg = F.damage({ atk, power, affinityMult: aff.mult, def, crit, extraMult });
-      return { dmg, crit, affinity: aff.kind, element: el };
+      // Amplify hits don't feed the wielder's own gauge — the gauge was spent
+      // into the move (otherwise Last Dance refunds its own vent)
+      return { dmg, crit, affinity: aff.kind, element: el, noGaugeFeed: !!ctx.isAmplify };
     }
 
     applyDamage(target, hit, attacker) {
@@ -267,7 +284,7 @@
       if (hit.affinity === 'rupture') this.log(`RUPTURE! ${hit.dmg} damage to ${target.name}!`, 'rupture');
       else this.log(`${target.name} takes ${hit.dmg}${hit.crit ? ' — CRITICAL!' : ''}${hit.affinity === 'resist' ? ' (resisted)' : ''}`, hit.crit ? 'crit' : '');
 
-      if (attacker) this.onHitDealt(attacker, { crit: hit.crit, rupture: hit.affinity === 'rupture' });
+      if (attacker) this.onHitDealt(attacker, { crit: hit.crit, rupture: hit.affinity === 'rupture', selfFeed: !hit.noGaugeFeed });
 
       if (target.hp <= 0) {
         this.emit('ko', { uid: target.uid });
@@ -309,10 +326,12 @@
         if (sk.gauge === 'full' && actor.gauge.value < GAUGE_MAX) { ok = false; why = `Needs ${GAUGE_MAX} ${actor.gauge.label}`; }
         if (typeof sk.gauge === 'number' && actor.gauge.value < sk.gauge) { ok = false; why = `Needs ${sk.gauge} ${actor.gauge.label}`; }
         if (sk.requiresAttuned && !actor.attuned) { ok = false; why = 'Attune first'; }
+        const cdLeft = actor.cooldowns[sk.id] || 0;
+        if (cdLeft > 0) { ok = false; why = `Ready in ${cdLeft} turn${cdLeft > 1 ? 's' : ''}`; }
         if (ok && (sk.target === 'enemy' || sk.target === 'ally') && this.validTargets(actor, sk).length === 0) {
           ok = false; why = sk.noTargetWhy || 'No valid target';
         }
-        return { skill: sk, ok, why, isBasic };
+        return { skill: sk, ok, why, isBasic, cdLeft };
       });
       let awaken = null;
       if (def.awaken) {
@@ -348,13 +367,16 @@
             const cost = combo.gaugeCost[id];
             if (cost && u.gauge.value < cost) { ok = false; why = `Needs ${cost} ${u.gauge.label} (${u.name})`; break; }
           }
-          return { combo, ok, why };
+          const cdLeft = this.comboCooldowns[combo.id] || 0;
+          if (ok && cdLeft > 0) { ok = false; why = `Ready in ${cdLeft} turn${cdLeft > 1 ? 's' : ''}`; }
+          return { combo, ok, why, cdLeft };
         });
     }
 
     doCombo(actor, comboId, targetUid) {
       const combo = WS.COMBOS.find((c) => c.id === comboId);
       const units = combo.participants.map((id) => this.comboUnit(id));
+      if (combo.cooldown) this.comboCooldowns[combo.id] = combo.cooldown;
       for (const u of units) {
         const cost = combo.gaugeCost[u.defId];
         if (cost) this.addGauge(u, -cost, 'combo');
@@ -442,6 +464,7 @@
       if (skill.mp) { actor.mp -= skill.mp; this.emit('mp', { uid: actor.uid, mp: actor.mp }); }
       if (skill.gauge === 'full') this.addGauge(actor, -GAUGE_MAX, 'amplify');
       else if (typeof skill.gauge === 'number') this.addGauge(actor, -skill.gauge, 'spend');
+      if (skill.cooldown) actor.cooldowns[skill.id] = skill.cooldown;
 
       if (isAmplify) this.emit('amplify', { uid: actor.uid, name: skill.name, cue: skill.cue });
       this.log(`${actor.name} — ${skill.name}!`, isAmplify ? 'amplify' : 'action');

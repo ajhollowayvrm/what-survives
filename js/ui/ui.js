@@ -355,7 +355,8 @@
     comboMenu(actor, combos) {
       this.setMenu(`${actor.name} — Combos`);
       for (const c of combos) {
-        const btn = this.menuButton(c.combo.name, c.combo.costLabel,
+        const cost = c.cdLeft > 0 ? `⏳ ${c.cdLeft}` : c.combo.costLabel;
+        const btn = this.menuButton(c.combo.name, cost,
           { disabled: !c.ok, why: c.why, title: c.combo.desc || '' });
         if (c.ok) btn.addEventListener('click', () => {
           if (c.combo.target === 'enemy') this.pickTarget(actor, c.combo, () => this.comboMenu(actor, combos), true);
@@ -368,7 +369,8 @@
     skillMenu(actor, list, title, costFn) {
       this.setMenu(`${actor.name} — ${title}`);
       for (const c of list) {
-        const btn = this.menuButton(c.skill.name, costFn(c.skill),
+        const cost = c.cdLeft > 0 ? `⏳ ${c.cdLeft}` : costFn(c.skill);
+        const btn = this.menuButton(c.skill.name, cost,
           { disabled: !c.ok, why: c.why, title: c.skill.desc || '', amplify: (c.skill.tags || []).includes('amplify') });
         if (c.ok) btn.addEventListener('click', () => this.dispatchSkill(actor, c.skill, () => this.skillMenu(actor, list, title, costFn)));
       }
@@ -385,7 +387,7 @@
         if (a.ok) btn.addEventListener('click', () => this._resolve({ type: 'awaken' }));
       }
       for (const c of gaugeSkills) {
-        const cost = c.skill.gauge === 'full' ? '100' : String(c.skill.gauge);
+        const cost = c.cdLeft > 0 ? `⏳ ${c.cdLeft}` : c.skill.gauge === 'full' ? '100' : String(c.skill.gauge);
         const btn = this.menuButton(c.skill.name, cost,
           { disabled: !c.ok, why: c.why, title: c.skill.desc || '', amplify: (c.skill.tags || []).includes('amplify') });
         if (c.ok) btn.addEventListener('click', () => this.dispatchSkill(actor, c.skill, () => this.gaugeMenu(actor, cmds, gaugeSkills)));

@@ -86,7 +86,7 @@
           desc: 'Mark a target: next hit on it is a guaranteed crit and ignores some GRD' },
         { id: 'last_dance', name: 'Last Dance', kind: 'phys', element: 'weapon', power: 70,
           hits: (u) => 4 + Math.floor(u.stats.AGI / 15),
-          gauge: 50, weight: 1.5, target: 'enemy', tags: ['amplify'],
+          gauge: 50, cooldown: 3, weight: 1.5, target: 'enemy', tags: ['amplify'],
           cue: 'Try to keep up.',
           critBonus: 40,
           desc: 'Amplify (50 Rage): the whole pack descends — a storm of crit-fishing strikes' },

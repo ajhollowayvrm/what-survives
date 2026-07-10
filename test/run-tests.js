@@ -163,6 +163,39 @@ console.log('— combos —');
   check('the attacker is marked as having hurt Earl', grunt.hurtEarl, true);
 }
 
+console.log('— cooldowns —');
+{
+  F.setRng(seeded(13));
+  const b = new WS.Battle(WS.BATTLES.warden, {});
+  const cinne = b.party.find((u) => u.defId === 'cinne');
+  const siren = b.party.find((u) => u.defId === 'siren');
+  const earl = b.party.find((u) => u.defId === 'earl');
+  const boss = b.enemies[0];
+
+  // Last Dance locks for 3 of her turns after use
+  cinne.gauge.value = 60;
+  b.act(cinne, { type: 'skill', skillId: 'last_dance', targetUid: boss.uid });
+  cinne.gauge.value = 60; // refill: gauge is no longer the limiter
+  let ld = b.commandsFor(cinne).skills.find((c) => c.skill.id === 'last_dance');
+  check('Last Dance on cooldown after use', ld.ok, false);
+  check('…3 turns of it', ld.cdLeft, 3);
+  b.tickCooldowns(cinne); b.tickCooldowns(cinne); b.tickCooldowns(cinne);
+  ld = b.commandsFor(cinne).skills.find((c) => c.skill.id === 'last_dance');
+  check('Last Dance ready after 3 of her turns', ld.ok, true);
+
+  // combo cooldown is shared: Earl's Calm Down locks it for Siren-side reuse too
+  b.act(earl, { type: 'combo', comboId: 'calm_down' });
+  const cd = b.combosFor(earl).find((c) => c.combo.id === 'calm_down');
+  check('Calm Down on shared cooldown', cd.ok, false);
+  // ticks on any participant's turn: 2 Cinne + 2 Earl turns clears the 4
+  b.tickCooldowns(cinne); b.tickCooldowns(earl); b.tickCooldowns(cinne); b.tickCooldowns(earl);
+  check('Calm Down ready again', b.combosFor(earl).find((c) => c.combo.id === 'calm_down').ok, true);
+  // non-participants don't tick it
+  b.act(earl, { type: 'combo', comboId: 'calm_down' });
+  b.tickCooldowns(siren); b.tickCooldowns(boss);
+  check('non-participant turns do not tick it', b.comboCooldowns.calm_down, 4);
+}
+
 console.log('— Earl attune / rupture refund —');
 {
   F.setRng(seeded(7));
