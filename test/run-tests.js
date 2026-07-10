@@ -98,10 +98,10 @@ console.log('— Rage pacing / Calm Down —');
   const earl = b.party.find((u) => u.defId === 'earl');
   const grunt = b.enemies[0];
 
-  // Rage accrues only from her own actions — hits taken feed nothing
+  // Rage fills from violence both ways (spec §6a): +8 on hit taken
   const before = cinne.gauge.value;
   b.applyDamage(cinne, { dmg: 30, crit: false, affinity: 'neutral' }, grunt);
-  check('hit taken adds no Rage', cinne.gauge.value, before);
+  check('hit taken feeds Rage +8', cinne.gauge.value, before + 8);
 
   // Calm Down vents 40 and feeds Earl 20
   cinne.gauge.value = 70;
@@ -173,9 +173,12 @@ console.log('— cooldowns —');
   const boss = b.enemies[0];
 
   // Last Dance locks for 3 of her turns after use
-  cinne.gauge.value = 60;
+  // (start at exactly 50: its own hits feed Rage back, and from higher she can
+  // Seize mid-move — that self-refund is deliberate, Earl is the real vent)
+  cinne.gauge.value = 50;
   b.act(cinne, { type: 'skill', skillId: 'last_dance', targetUid: boss.uid });
-  cinne.gauge.value = 60; // refill: gauge is no longer the limiter
+  check('Last Dance hits fed Rage back', cinne.gauge.value > 0, true);
+  cinne.gauge.value = 60; // normalize: gauge is not the limiter under test
   let ld = b.commandsFor(cinne).skills.find((c) => c.skill.id === 'last_dance');
   check('Last Dance on cooldown after use', ld.ok, false);
   check('…3 turns of it', ld.cdLeft, 3);

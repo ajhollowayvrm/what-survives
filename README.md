@@ -92,9 +92,11 @@ Everything numeric is in `js/data/` — tune there, logic never has to change.
    play is comfortable and careless play bleeds.
 5. **The Da'Charta Stand's +50 gauge excludes Katariña herself** (otherwise
    it half-refunds its own 100 cost).
-5b. **Rage accrues only from Cinne's own actions** (playtest feedback: the
-   +8-per-hit-taken on top of her action rate seized her too fast — she now
-   maxes in ~7 unmanaged turns of her own).
+5b. **Rage runs hot by design** (playtest direction, after trying a tamer
+   version and reverting it): fills per spec §6a including +8 on hit taken,
+   and Last Dance's own hits feed Rage back, so it only *half*-vents.
+   **Earl's Calm Down is the only real way to bring her down** — and it has
+   a cooldown, so he can't always be there. Bloodrun is meant to happen.
 5c. **The combo roster is in** (milestone 9, pulled forward), under a
    **Combos** root menu. Costs are my first pass: Friendstrike 15 gauge
    each; Watch and Learn 30 each (+25% coordination); "I Won't Let Them
@@ -108,10 +110,9 @@ Everything numeric is in `js/data/` — tune there, logic never has to change.
    ~2000 damage). Skills can carry `cooldown: N` (ticks on the owner's
    turns); combos share one cooldown that ticks on any participant's turn.
    Current values: Last Dance 3, Friendstrike 4, Watch and Learn 6, the Vow
-   5, Calm Down 4. Menus show ⏳ with turns remaining. Related fix: **an
-   Amplify's own hits no longer feed the wielder's gauge** — Last Dance's 8
-   hits were refunding more Rage than the 50 it vented (allies' Fervor
-   triggers still fire on Amplify Ruptures).
+   5, Calm Down 4. Menus show ⏳ with turns remaining. (An earlier companion
+   fix stopped Amplify hits from feeding the wielder's gauge; that was
+   reverted on purpose — see 5b — the cooldowns alone gate the loop.)
 6. **Earl's Amplify is named `[Prismbreak]`** and his Awaken `[Sigil Orbit]`
    — bracketed placeholders per the docs' convention, cue line "Mmhm!".
 7. Not yet modeled from the docs: elemental status afflictions (so Earl's

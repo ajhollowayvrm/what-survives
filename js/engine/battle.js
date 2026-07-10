@@ -188,8 +188,11 @@
       this.log(`${u.name}'s Rage crests — BLOODRUN! She is beyond reach.`, 'bloodrun');
     }
 
-    onHitDealt(attacker, { crit, rupture, selfFeed }) {
-      if (selfFeed && attacker.gauge) {
+    // Note: Amplify hits feed the wielder's gauge like any hit (spec §6a). For
+    // Cinne this is deliberate post-playtest: Last Dance only half-vents her
+    // Rage — Earl's Calm Down is the only real way to bring her down.
+    onHitDealt(attacker, { crit, rupture }) {
+      if (attacker.gauge) {
         if (attacker.gauge.type === 'rage') this.addGauge(attacker, crit ? 12 : 4, 'hit');
         else if (attacker.gauge.type === 'resonance') {
           this.addGauge(attacker, 4 + (rupture ? 15 : 0), rupture ? 'rupture' : 'hit');
@@ -204,10 +207,8 @@
 
     onHitTaken(u) {
       if (!u.gauge || u.hp <= 0) return;
-      // Rage deliberately absent: it accrues only from Cinne's own actions
-      // (playtest: hit-taken gains on top of her action rate seized her too fast)
-      const amt = { resonance: 6, fervor: 10 }[u.gauge.type];
-      if (amt) this.addGauge(u, amt, 'hit taken');
+      const amt = { resonance: 6, rage: 8, fervor: 10 }[u.gauge.type];
+      this.addGauge(u, amt, 'hit taken');
     }
 
     // ---------- damage ----------
@@ -264,9 +265,7 @@
 
       const power = typeof skill.power === 'function' ? skill.power(attacker) : skill.power;
       const dmg = F.damage({ atk, power, affinityMult: aff.mult, def, crit, extraMult });
-      // Amplify hits don't feed the wielder's own gauge — the gauge was spent
-      // into the move (otherwise Last Dance refunds its own vent)
-      return { dmg, crit, affinity: aff.kind, element: el, noGaugeFeed: !!ctx.isAmplify };
+      return { dmg, crit, affinity: aff.kind, element: el };
     }
 
     applyDamage(target, hit, attacker) {
@@ -289,7 +288,7 @@
       if (hit.affinity === 'rupture') this.log(`RUPTURE! ${hit.dmg} damage to ${target.name}!`, 'rupture');
       else this.log(`${target.name} takes ${hit.dmg}${hit.crit ? ' — CRITICAL!' : ''}${hit.affinity === 'resist' ? ' (resisted)' : ''}`, hit.crit ? 'crit' : '');
 
-      if (attacker) this.onHitDealt(attacker, { crit: hit.crit, rupture: hit.affinity === 'rupture', selfFeed: !hit.noGaugeFeed });
+      if (attacker) this.onHitDealt(attacker, { crit: hit.crit, rupture: hit.affinity === 'rupture' });
 
       if (target.hp <= 0) {
         this.emit('ko', { uid: target.uid });
