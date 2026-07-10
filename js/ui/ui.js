@@ -8,7 +8,10 @@
     siren: '#3fa7d6', cinne: '#8ee06e', earl: '#c9b8ff', katarina: '#e8a33d',
   };
   const GAUGE_COLORS = { resonance: '#3fa7d6', rage: '#e3405f', fervor: '#e8a33d' };
-  const ENEMY_GLYPHS = { sparring_construct: '⚙', aspect_warden: '👁' };
+  const ENEMY_GLYPHS = {
+    sparring_construct: '⚙', stoneline_construct: '🛡', galeline_construct: '🌀',
+    academy_proctor: '⚖', aspect_warden: '👁', tidebound_shard: '💠', stonebound_shard: '⬢',
+  };
 
   const DELAYS = {
     action: 220, damage: 340, rupture: 650, heal: 180, freeze: 300, attune: 450,

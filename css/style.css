@@ -40,10 +40,10 @@ body {
   color: #eaf1ff; text-shadow: 0 0 32px rgba(63, 167, 214, 0.45);
 }
 .tagline { color: var(--dim); font-style: italic; margin-bottom: 36px; }
-#battle-select { display: flex; gap: 18px; justify-content: center; margin-bottom: 30px; }
+#battle-select { display: flex; gap: 14px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap; max-width: 900px; margin-left: auto; margin-right: auto; }
 .battle-card {
   background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-  padding: 18px 20px; width: 300px; cursor: pointer; text-align: left;
+  padding: 16px 18px; width: 270px; cursor: pointer; text-align: left;
   transition: border-color 0.15s, transform 0.15s;
 }
 .battle-card:hover { border-color: #3fa7d6; transform: translateY(-2px); }
@@ -86,10 +86,10 @@ body {
   60% { transform: translate(-5px, -4px); } 80% { transform: translate(4px, 3px); }
 }
 
-#enemy-zone { display: flex; gap: 28px; }
+#enemy-zone { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; padding: 0 16px; }
 .enemy-card {
   background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
-  padding: 18px 22px; min-width: 260px; position: relative; text-align: center;
+  padding: 16px 18px; min-width: 230px; position: relative; text-align: center;
   transition: border-color 0.2s, opacity 0.4s;
 }
 .enemy-card .glyph {

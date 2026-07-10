@@ -51,6 +51,11 @@
 
       this.party = WS.CHARACTERS.map((c) => makePartyUnit(c, battleDef.partyLevel));
       this.enemies = battleDef.enemies.map((id) => makeEnemyUnit(WS.ENEMIES[id]));
+      // disambiguate duplicate enemies ("Construct A", "Construct B")
+      for (const u of this.enemies) {
+        const twins = this.enemies.filter((e) => e.defId === u.defId);
+        if (twins.length > 1) twins.forEach((e, i) => { e.name = `${e.def.name} ${'ABCD'[i]}`; });
+      }
       this.units = [...this.party, ...this.enemies];
 
       // initialize each actor's counter to their first action cost
@@ -662,6 +667,17 @@
         if (r < 0.25 && foes.length > 1) return { type: 'skill', skillId: 'wardenfall' };
         if (r < 0.6) return { type: 'skill', skillId: 'aspect_surge', targetUid: target.uid };
         return { type: 'skill', skillId: 'aspect_strike', targetUid: target.uid };
+      }
+
+      if (actor.def.ai === 'proctor') {
+        const r = F.rand();
+        // never repeats the dazzle back-to-back
+        if (r < 0.25 && actor.lastSkillId !== 'blinding_order') {
+          actor.lastSkillId = 'blinding_order';
+          return { type: 'skill', skillId: 'blinding_order', targetUid: target.uid };
+        }
+        actor.lastSkillId = r < 0.6 ? 'flash_sear' : 'credential_cut';
+        return { type: 'skill', skillId: actor.lastSkillId, targetUid: target.uid };
       }
 
       // grunt: simple basic attacks

@@ -258,6 +258,16 @@ function simulate(battleId, seed) {
   check('sparring is winnable', s.result, 'victory');
   console.log(`  sparring: ${s.result} in ${s.turns} turns`);
 }
+for (const id of ['gauntlet', 'proctor', 'retinue']) {
+  let wins = 0, total = 10;
+  for (let seed = 1; seed <= total; seed++) {
+    const s = simulate(id, seed);
+    check(`${id} #${seed} terminates`, s.result !== 'active', true);
+    if (s.result === 'victory') wins++;
+  }
+  check(`${id} is winnable`, wins > 0, true);
+  console.log(`  ${id}: random-play win rate ${wins}/${total}`);
+}
 {
   let wins = 0, total = 20, maxTurns = 0, sawAspect = false, sawBloodrun = false, sawAmplify = false, sawSeal = false;
   for (let seed = 1; seed <= total; seed++) {

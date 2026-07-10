@@ -8,13 +8,20 @@ no build step, no dependencies.
 
 Open `index.html` in a browser (double-click works — no server needed).
 
-Two battles from the title screen:
+Five battles from the title screen, in difficulty order:
 
 - **Sparring Match** (party level 5) — one Ember construct. Learn the loop:
   Siren's Tide attacks Rupture it for 2× damage and big gauge.
+- **Training Gauntlet** (level 6) — three constructs, three elements. Each
+  weakness has a different answer: Tide→Siren, Stone→Cinne, Gale→only
+  Earl's Attune.
+- **The Proctor's Detail** (level 9) — a fast Radiance duelist (hits hard,
+  drags your turns back) with two escorts. Kill order matters.
 - **The Aspect-Warden** (party level 13) — the real fight. It cycles its
   Aspect (Ember → Stone → Tide) every 3 of its turns, so its weakness rotates;
   it Seals artes. Earl's Attune is how you keep up.
+- **Warden and Retinue** (level 14) — the Warden flanked by a Tidebound and
+  a Stonebound Shard. The hard run (~1 party KO per fight even in sims).
 
 ### The loop, in one paragraph
 
