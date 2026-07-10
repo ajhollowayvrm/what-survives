@@ -89,6 +89,33 @@ console.log('— battle basics —');
   check('seized Cinne auto-attacks someone', !!act.targetUid, true);
 }
 
+console.log('— Rage pacing / Calm Down —');
+{
+  F.setRng(seeded(9));
+  const b = new WS.Battle(WS.BATTLES.sparring, {});
+  const cinne = b.party.find((u) => u.defId === 'cinne');
+  const earl = b.party.find((u) => u.defId === 'earl');
+  const grunt = b.enemies[0];
+
+  // Rage accrues only from her own actions — hits taken feed nothing
+  const before = cinne.gauge.value;
+  b.applyDamage(cinne, { dmg: 30, crit: false, affinity: 'neutral' }, grunt);
+  check('hit taken adds no Rage', cinne.gauge.value, before);
+
+  // Calm Down vents 40 and feeds Earl 20
+  cinne.gauge.value = 70;
+  b.doSkill(earl, 'calm_down', cinne.uid);
+  check('Calm Down vents Rage to 30', cinne.gauge.value, 30);
+  check('Calm Down gives Earl +20 Resonance', earl.gauge.value >= 20, true);
+
+  // prevention, not rescue: unusable during Bloodrun
+  b.addGauge(cinne, 100, 'test');
+  check('Cinne Seizes at 100', b.hasStatus(cinne, 'bloodrun'), true);
+  const cd = b.commandsFor(earl).skills.find((c) => c.skill.id === 'calm_down');
+  check('Calm Down blocked during Bloodrun', cd.ok, false);
+  check('…with the right reason', cd.why, 'She is beyond reach');
+}
+
 console.log('— Earl attune / rupture refund —');
 {
   F.setRng(seeded(7));

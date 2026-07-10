@@ -184,8 +184,10 @@
 
     onHitTaken(u) {
       if (!u.gauge || u.hp <= 0) return;
-      const amt = { resonance: 6, rage: 8, fervor: 10 }[u.gauge.type];
-      this.addGauge(u, amt, 'hit taken');
+      // Rage deliberately absent: it accrues only from Cinne's own actions
+      // (playtest: hit-taken gains on top of her action rate seized her too fast)
+      const amt = { resonance: 6, fervor: 10 }[u.gauge.type];
+      if (amt) this.addGauge(u, amt, 'hit taken');
     }
 
     // ---------- damage ----------
@@ -301,6 +303,9 @@
         if (sk.gauge === 'full' && actor.gauge.value < GAUGE_MAX) { ok = false; why = `Needs ${GAUGE_MAX} ${actor.gauge.label}`; }
         if (typeof sk.gauge === 'number' && actor.gauge.value < sk.gauge) { ok = false; why = `Needs ${sk.gauge} ${actor.gauge.label}`; }
         if (sk.requiresAttuned && !actor.attuned) { ok = false; why = 'Attune first'; }
+        if (ok && (sk.target === 'enemy' || sk.target === 'ally') && this.validTargets(actor, sk).length === 0) {
+          ok = false; why = sk.noTargetWhy || 'No valid target';
+        }
         return { skill: sk, ok, why, isBasic };
       });
       let awaken = null;
@@ -315,7 +320,10 @@
 
     validTargets(actor, skill) {
       if (skill.target === 'enemy') return this.foesOf(actor);
-      if (skill.target === 'ally') return this.alliesOf(actor).filter((u) => this.supportable(u));
+      if (skill.target === 'ally') {
+        return this.alliesOf(actor).filter((u) =>
+          this.supportable(u) && (!skill.targetDefId || u.defId === skill.targetDefId));
+      }
       return []; // AoE/self need no target pick
     }
 
@@ -468,6 +476,13 @@
             this.addStatus(t, { id: 'grd_down', name: 'Guard Down', turns: e.turns, data: { stats: e.stats } });
           }
           this.log('Enemy Guard crumbles.', 'buff');
+          break;
+        case 'ventRage':
+          if (target && target.gauge && target.gauge.type === 'rage') {
+            this.addGauge(target, -e.amount, 'vented');
+            this.addGauge(actor, e.selfGauge, 'combo');
+            this.log(`"Calm down." — ${actor.name} reaches his sister. ${target.name}'s Rage falls to ${Math.floor(target.gauge.value)}.`, 'buff');
+          }
           break;
         case 'gaugeGift':
           if (target && this.supportable(target) && target.gauge) {

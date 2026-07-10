@@ -113,6 +113,13 @@
           mp: 10, weight: 1.0, target: 'enemy',
           effects: [{ type: 'refundAlliesOnRupture', amount: 12 }],
           desc: 'Arte in his current attuned element; a Rupture refunds gauge to all allies' },
+        // combo (pulled forward from milestone 9): his one genuinely willed act.
+        // Prevention, not rescue — once she's in Bloodrun even he can't reach her.
+        { id: 'calm_down', name: 'Calm Down', kind: 'support', element: null,
+          weight: 1.0, target: 'ally', targetDefId: 'cinne', tags: ['combo'],
+          noTargetWhy: 'She is beyond reach',
+          effects: [{ type: 'ventRage', amount: 40, selfGauge: 20 }],
+          desc: 'Combo: Earl grounds his sister — Cinne’s Rage −40, Earl +20 Resonance. Useless once she Seizes.' },
         { id: 'prismbreak', name: '[Prismbreak]', kind: 'arte', element: 'attuned',
           power: (u) => 200 + u.stats.FOC * 2.5,
           gauge: 'full', weight: 1.5, target: 'enemy', tags: ['amplify'],

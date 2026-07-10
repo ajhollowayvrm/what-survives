@@ -85,6 +85,11 @@ Everything numeric is in `js/data/` — tune there, logic never has to change.
    play is comfortable and careless play bleeds.
 5. **The Da'Charta Stand's +50 gauge excludes Katariña herself** (otherwise
    it half-refunds its own 100 cost).
+5b. **Rage accrues only from Cinne's own actions** (playtest feedback: the
+   +8-per-hit-taken on top of her action rate seized her too fast — she now
+   maxes in ~7 unmanaged turns of her own). **Calm Down (Earl → Cinne) is
+   pulled forward from the milestone-9 combo roster** as the vent tool:
+   Rage −40, Earl +20 Resonance, and it cannot reach her during Bloodrun.
 6. **Earl's Amplify is named `[Prismbreak]`** and his Awaken `[Sigil Orbit]`
    — bracketed placeholders per the docs' convention, cue line "Mmhm!".
 7. Not yet modeled from the docs: elemental status afflictions (so Earl's
@@ -93,6 +98,6 @@ Everything numeric is in `js/data/` — tune there, logic never has to change.
 ## What's next (handoff milestone 9+)
 
 - Mael (Defiance gauge, Break/Unshackle) — the answer to Seal
-- Combo moves (Friendstrike, Calm Down, Watch and Learn…)
+- Remaining combo moves (Friendstrike, Watch and Learn…) — Calm Down is in
 - Status effect set (Burn/Poison/Weaken/Guard Break) and elemental statuses
 - Amplify cost decay with attunement; bench/reserve system

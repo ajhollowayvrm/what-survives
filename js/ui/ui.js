@@ -324,6 +324,12 @@
           .addEventListener('click', () => this.skillMenu(actor, artes, 'Artes', (sk) => `${sk.mp} MP`));
       }
 
+      for (const c of cmds.skills.filter((x) => (x.skill.tags || []).includes('combo'))) {
+        const btn = this.menuButton(c.skill.name, 'combo',
+          { disabled: !c.ok, why: c.why, title: c.skill.desc || '' });
+        if (c.ok) btn.addEventListener('click', () => this.pickTarget(actor, c.skill, () => this.rootMenu(actor)));
+      }
+
       const gaugeSkills = cmds.skills.filter((c) => c.skill.gauge != null);
       if (cmds.awaken || gaugeSkills.length) {
         const g = actor.gauge;
