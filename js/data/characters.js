@@ -123,6 +123,43 @@
     },
 
     {
+      id: 'mael', name: 'Mael', title: 'The Liberator', reason: 'Heanmetal',
+      element: 'tide', // native Tide; the Gale he seized shows in his combos
+      weaponAtk: 30, arteBonus: 14,
+      base:   { VIT: 15, PWR: 15, FOC: 9, SPR: 12, GRD: 13, WRD: 10, AGI: 10, LCK: 11 },
+      growth: { VIT: 3,  PWR: 3,  FOC: 1, SPR: 2,  GRD: 3,  WRD: 2,  AGI: 2,  LCK: 2 },
+      // Defiance is adversity-fed ONLY (no passive, nothing from his own hits):
+      // +8 hit taken · +10 debuffed · +2 per enemy action while outnumbered · +10 ally down
+      gauge: { type: 'defiance', label: 'Defiance', start: 0 },
+      awaken: {
+        name: 'Maelstrom', cost: 100,
+        desc: 'weaponAtk ×1.5 for 3 turns; enemy control effects slip — half accuracy against the party',
+        controlSlip: 0.5,
+      },
+      skills: [
+        { id: 'mael_basic', name: 'Attack', kind: 'phys', element: 'weapon', power: 100,
+          weight: 1.0, target: 'enemy', tags: ['basic'] },
+        { id: 'dragchain', name: 'Dragchain', kind: 'phys', element: 'weapon', power: 125,
+          mp: 7, weight: 1.0, target: 'enemy',
+          desc: 'Heanmetal at full extension — a heavy Tide-wrapped chain strike' },
+        { id: 'break', name: 'Break', kind: 'support', element: null,
+          gauge: 30, weight: 1.0, target: 'self',
+          effects: [{ type: 'cleanse' }, { type: 'unbound', turns: 3, pwr: 0.25 }],
+          desc: 'Shatter his own bindings: cleanse all debuffs; control-immune and +25% PWR for 2 turns' },
+        { id: 'unshackle', name: 'Unshackle', kind: 'support', element: null,
+          gauge: 25, weight: 1.0, target: 'ally', excludeSelf: true,
+          noTargetWhy: 'No ally to free',
+          effects: [{ type: 'cleanse' }],
+          desc: 'Free one ally of all debuffs and control. (Bloodrun is beyond even him.)' },
+        { id: 'stormbreak', name: '[Stormbreak]', kind: 'phys', element: 'weapon',
+          power: (u) => 210 + u.stats.PWR * 2,
+          gauge: 'full', weight: 1.5, target: 'enemy', tags: ['amplify'],
+          cue: 'It was all… a lie!',
+          desc: 'Amplify: the tempest let loose — everything he gave to the lie, turned back on it' },
+      ],
+    },
+
+    {
       id: 'katarina', name: 'Katariña', title: 'The Amplifier', reason: 'Staff of Nagandahl',
       element: null, // Spirit — no elemental affinity, can't be Ruptured
       spirit: true,
@@ -165,6 +202,10 @@
       ],
     },
   ];
+
+  // Battles without an explicit `party` roster use the founding four.
+  // (Mael joins in Act 4 — battles that include him list him explicitly.)
+  WS.DEFAULT_PARTY = ['siren', 'cinne', 'earl', 'katarina'];
 
   if (typeof module !== 'undefined') module.exports = WS;
 })();

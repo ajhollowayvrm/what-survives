@@ -8,7 +8,7 @@ no build step, no dependencies.
 
 Open `index.html` in a browser (double-click works — no server needed).
 
-Five battles from the title screen, in difficulty order:
+Six battles from the title screen, in difficulty order:
 
 - **Sparring Match** (party level 5) — one Ember construct. Learn the loop:
   Siren's Tide attacks Rupture it for 2× damage and big gauge.
@@ -17,6 +17,10 @@ Five battles from the title screen, in difficulty order:
   Earl's Attune.
 - **The Proctor's Detail** (level 9) — a fast Radiance duelist (hits hard,
   drags your turns back) with two escorts. Kill order matters.
+- **The Retrieval Detail** (level 11) — **Mael joins the party.** Six of
+  Korveth's finest sent to re-collar him: Seals, stat debuffs, turn-dragging
+  chains. Outnumbered and bound is exactly where his Defiance rises — Break
+  and Unshackle are the answer.
 - **The Aspect-Warden** (party level 13) — the real fight. It cycles its
   Aspect (Ember → Stone → Tide) every 3 of its turns, so its weakness rotates;
   it Seals artes. Earl's Attune is how you keep up.
@@ -33,6 +37,9 @@ it all into a signature move). Cinne's Rage is different — you *ride* it: more
 Rage = more damage, but at 100 she Seizes into **Bloodrun** and you lose her
 for 3 turns (and can't heal or buff her). Katariña runs on **Fervor**, built
 by endurance and spent on invocations that arm everyone else's big moments.
+Mael (from The Retrieval Detail on) runs on **Defiance**, fed only by
+adversity — hits taken, debuffs landed, allies down, fighting outnumbered —
+and spent breaking control: his own (**Break**) or an ally's (**Unshackle**).
 
 ## Repo layout
 
@@ -54,14 +61,16 @@ docs/                 the five design docs — CLAUDE_CODE_HANDOFF.md is the spe
 node test/run-tests.js
 ```
 
-79 checks: formulas pinned to the design docs' worked examples (tick costs,
+159 checks: formulas pinned to the design docs' worked examples (tick costs,
 damage sanity, L1 HP values), affinity wheel, gauge triggers, Bloodrun,
-Attune, combos, cooldowns, plus 21 seeded auto-battles proving both fights
-terminate and every system (aspect shift, Seal, Amplify, Bloodrun) fires.
+Attune, combos, cooldowns, Mael's Defiance/Break/Unshackle/Maelstrom, plus
+61 seeded auto-battles proving every fight terminates and every system
+(aspect shift, Seal, Amplify, Bloodrun, Unbound) fires.
 
 `test/autoplay.html` lets you *watch* a random-play battle to eyeball feel
-and balance (`?battle=sparring|warden`, add `&mode=menu` to drive the real
-command menus with synthetic clicks).
+and balance (`?battle=` any battle id, e.g. `sparring`, `retrieval`,
+`warden`; add `&mode=menu` to drive the real command menus with synthetic
+clicks).
 
 ## Deploy (GitHub Pages)
 
@@ -117,10 +126,39 @@ Everything numeric is in `js/data/` — tune there, logic never has to change.
    — bracketed placeholders per the docs' convention, cue line "Mmhm!".
 7. Not yet modeled from the docs: elemental status afflictions (so Earl's
    "status magnet" downside is inert), Awaken cost decay, item commands.
+8. **Mael is in (milestone 9 complete).** Battles now carry an optional
+   `party` roster (default: the founding four) — Mael fights only where
+   listed, and combos with absent partners simply don't appear. His numbers,
+   first pass: weaponAtk 30 / arteBonus 14 (a PWR bruiser; his artes are
+   utility). Defiance fills per spec with **"outnumbered" read as living
+   enemies > living party** — which is why the Retrieval Detail fields six.
+   No passive fill: adversity only. Break's Unbound = cleanse + control
+   immunity + 25% PWR for 2 turns; Unshackle can't target himself (that's
+   Break's job) and — per spec — can never reach Bloodrun. **Maelstrom
+   costs 100** like Siren's Awaken (same save-or-spend economy) and halves
+   enemy status accuracy against the whole party. His Amplify is the
+   placeholder **`[Stormbreak]`** (power 210 + PWR×2, cue "It was all… a
+   lie!").
+9. **Mael's combo costs, first pass:** "You Don't Have to Be Anything"
+   25 Defiance + 15 Resonance, cooldown 5 — Earl strikes in the target's
+   *opposing* element with no Attune (Gale, freedom, against the
+   elementless), so it's a guaranteed Rupture against anything elemental;
+   priced above Friendstrike for that certainty. "You're Not Like Them"
+   40 + 40, cooldown 6 — Cinne's crit flurry then Mael's Tide + Gale burst,
+   +30% vs `artificial`/`state` tags. (The entire prototype roster is
+   state-tagged, so the bonus always applies for now — it starts mattering
+   when Primal/wildlife enemies arrive.)
+10. **Retrieval Detail tuning (sim-verified, 200 seeds):** random play wins
+   95% with 0.92 party KOs — same calibration as the Warden. Seals land
+   ~1.8/fight; Mael Breaks or Unshackles ~1.4×/fight, so the liberation
+   kit has real work. His Defiance peaks at 53 on average and only reaches
+   100 in 8% of random-play fights — under random play he vents at 25/30
+   constantly, so `[Stormbreak]`/Maelstrom are things a deliberate player
+   *banks* for. That's the intended ride-or-vent choice, left as is.
 
 ## What's next (handoff milestone 9+)
 
-- Mael (Defiance gauge, Break/Unshackle) — the answer to Seal — plus his
-  two combos ("You don't have to be anything", "You're not like them")
 - Status effect set (Burn/Poison/Weaken/Guard Break) and elemental statuses
 - Amplify cost decay with attunement; bench/reserve system
+- Story-gating for combo unlocks; "realness" progression on Earl from the
+  Mael combo (currently mechanical only)

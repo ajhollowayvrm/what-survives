@@ -49,7 +49,9 @@
       this.totems = { party: null, enemy: null };
       this.comboCooldowns = {};
 
-      this.party = WS.CHARACTERS.map((c) => makePartyUnit(c, battleDef.partyLevel));
+      const roster = battleDef.party || WS.DEFAULT_PARTY;
+      this.party = roster.map((id) =>
+        makePartyUnit(WS.CHARACTERS.find((c) => c.id === id), battleDef.partyLevel));
       this.enemies = battleDef.enemies.map((id) => makeEnemyUnit(WS.ENEMIES[id]));
       // disambiguate duplicate enemies ("Construct A", "Construct B")
       for (const u of this.enemies) {
@@ -108,7 +110,15 @@
       if (actor.gauge) {
         const g = actor.gauge.type;
         if (g === 'rage') this.addGauge(actor, 3, 'passive');
-        else this.addGauge(actor, this.stat(actor, 'SPR') / 10, 'passive');
+        // Defiance is adversity-fed only — no passive fill
+        else if (g !== 'defiance') this.addGauge(actor, this.stat(actor, 'SPR') / 10, 'passive');
+      }
+
+      // Defiance: +2 per enemy action while the party stands outnumbered
+      if (actor.side === 'enemy' && this.living('enemy').length > this.living('party').length) {
+        for (const u of this.living('party')) {
+          if (u.gauge && u.gauge.type === 'defiance') this.addGauge(u, 2, 'outnumbered');
+        }
       }
       return actor;
     }
@@ -170,6 +180,8 @@
       if (existing) existing.turns = Math.max(existing.turns, s.turns);
       else u.statuses.push(s);
       this.emit('status', { uid: u.uid, id: s.id, name: s.name });
+      // he rises as things go wrong: a debuff landing feeds Defiance
+      if (s.harmful && u.gauge && u.gauge.type === 'defiance') this.addGauge(u, 10, 'defied');
     }
 
     // ---------- gauges ----------
@@ -207,7 +219,7 @@
 
     onHitTaken(u) {
       if (!u.gauge || u.hp <= 0) return;
-      const amt = { resonance: 6, rage: 8, fervor: 10 }[u.gauge.type];
+      const amt = { resonance: 6, rage: 8, fervor: 10, defiance: 8 }[u.gauge.type];
       this.addGauge(u, amt, 'hit taken');
     }
 
@@ -297,12 +309,18 @@
         this.onHitTaken(target);
       }
 
-      // Fervor rises when an ally drops to critical HP or falls
+      // Fervor rises when an ally drops to critical HP or falls;
+      // Defiance rises when an ally falls
       if (target.side === 'party') {
         const droppedCritical = (before / target.maxHp >= 0.25 && target.hp / target.maxHp < 0.25) || target.hp <= 0;
         if (droppedCritical) {
           for (const a of this.living('party')) {
             if (a !== target && a.gauge && a.gauge.type === 'fervor') this.addGauge(a, 15, 'ally critical');
+          }
+        }
+        if (target.hp <= 0) {
+          for (const a of this.living('party')) {
+            if (a !== target && a.gauge && a.gauge.type === 'defiance') this.addGauge(a, 10, 'ally down');
           }
         }
       }
@@ -351,7 +369,8 @@
       if (skill.target === 'enemy') return this.foesOf(actor);
       if (skill.target === 'ally') {
         return this.alliesOf(actor).filter((u) =>
-          this.supportable(u) && (!skill.targetDefId || u.defId === skill.targetDefId));
+          this.supportable(u) && (!skill.excludeSelf || u !== actor)
+          && (!skill.targetDefId || u.defId === skill.targetDefId));
       }
       return []; // AoE/self need no target pick
     }
@@ -361,7 +380,9 @@
 
     combosFor(actor) {
       return (WS.COMBOS || [])
-        .filter((c) => c.initiators.includes(actor.defId))
+        // absent partners aren't "down" — the combo just isn't offered
+        .filter((c) => c.initiators.includes(actor.defId)
+          && c.participants.every((id) => this.comboUnit(id)))
         .map((combo) => {
           let ok = true, why = '';
           for (const id of combo.participants) {
@@ -398,13 +419,25 @@
             affinityOverride = { mult: 2.0, kind: 'rupture' };
           }
         }
-        const ctx = { affinityOverride, extraMult: combo.coordBonus };
+        let extraMult = combo.coordBonus || 1;
+        // seeing-through-the-lie: bonus vs tagged (Artificial / state) enemies
+        if (combo.bonusVs && (target.def.tags || []).some((t) => combo.bonusVs.includes(t))) {
+          extraMult *= combo.bonusMult;
+        }
+        const ctx = { affinityOverride, extraMult };
         for (const h of combo.hits) {
           const dealer = this.comboUnit(h.by);
           if (!dealer || dealer.hp <= 0) continue;
+          // "no Attune setup": the strike resolves as the target's opposing
+          // element at cast time (Gale — freedom — against the elementless)
+          let hit = h;
+          if (h.element === 'trueElement') {
+            const defEl = this.elementOf(target);
+            hit = { ...h, element: defEl ? WS.ELEMENTS[defEl].opposite : 'gale' };
+          }
           for (let i = 0; i < (h.times || 1); i++) {
             if (target.hp <= 0) break;
-            this.applyDamage(target, this.computeHit(dealer, target, h, ctx), dealer);
+            this.applyDamage(target, this.computeHit(dealer, target, hit, ctx), dealer);
           }
         }
       }
@@ -441,7 +474,7 @@
       // +1 so the buff survives this turn's own end-of-turn tick
       this.addStatus(actor, {
         id: 'awaken', name: aw.name, turns: 4,
-        data: { critBonus: aw.critBonus, weightMult: aw.weightMult, allyDamageTakenMult: aw.allyDamageTakenMult },
+        data: { critBonus: aw.critBonus, weightMult: aw.weightMult, allyDamageTakenMult: aw.allyDamageTakenMult, controlSlip: aw.controlSlip },
       });
       this.emit('awaken', { uid: actor.uid, name: aw.name });
       this.log(`${actor.name} AWAKENS — ${aw.name}!`, 'awaken');
@@ -517,7 +550,9 @@
       switch (e.type) {
         case 'freeze': {
           if (!target || target.hp <= 0) break;
-          const chance = F.statusChance(e.chance, this.stat(actor, 'LCK'), this.stat(target, 'LCK'));
+          if (this.hasStatus(target, 'unbound')) { this.log(`${target.name} will not be held.`, 'buff'); break; }
+          const chance = F.statusChance(e.chance, this.stat(actor, 'LCK'), this.stat(target, 'LCK'))
+            * this.controlSlipFor(target);
           if (F.rand() * 100 < chance) {
             const push = Math.round(F.tickCost(this.stat(target, 'AGI'), 1.0) * e.push);
             target.nextTurn += push;
@@ -585,7 +620,7 @@
           break;
         case 'debuffAllEnemies':
           for (const t of this.foesOf(actor)) {
-            this.addStatus(t, { id: 'grd_down', name: 'Guard Down', turns: e.turns, data: { stats: e.stats } });
+            this.addStatus(t, { id: 'grd_down', name: 'Guard Down', turns: e.turns, harmful: true, data: { stats: e.stats } });
           }
           this.log('Enemy Guard crumbles.', 'buff');
           break;
@@ -606,14 +641,44 @@
           break;
         case 'seal': {
           if (!target || target.hp <= 0) break;
-          const chance = F.statusChance(e.chance, this.stat(actor, 'LCK'), this.stat(target, 'LCK'));
+          if (this.hasStatus(target, 'unbound')) { this.log(`${target.name} will not be bound.`, 'buff'); break; }
+          const chance = F.statusChance(e.chance, this.stat(actor, 'LCK'), this.stat(target, 'LCK'))
+            * this.controlSlipFor(target);
           if (F.rand() * 100 < chance) {
-            this.addStatus(target, { id: 'seal', name: 'Seal', turns: e.turns, data: {} });
+            this.addStatus(target, { id: 'seal', name: 'Seal', turns: e.turns, harmful: true, data: {} });
             this.log(`${target.name} is SEALED — artes locked!`, 'seal');
           } else this.log(`${target.name} resists the Seal.`, 'dim');
           break;
         }
+        case 'debuff':
+          if (target && target.hp > 0) {
+            this.addStatus(target, { id: e.id, name: e.name, turns: e.turns, harmful: true, data: { stats: e.stats } });
+            this.log(`${target.name} is weighed down — ${e.name}.`, 'seal');
+          }
+          break;
+        case 'cleanse': {
+          const t = target || actor; // Break cleanses himself; Unshackle an ally
+          const bound = t.statuses.filter((s) => s.harmful);
+          for (const s of bound) this.removeStatus(t, s);
+          this.log(bound.length
+            ? `${t.name}'s bindings shatter — ${bound.map((s) => s.name).join(', ')} gone.`
+            : `${t.name} carries nothing that binds.`, 'buff');
+          break;
+        }
+        case 'unbound':
+          this.addStatus(actor, { id: 'unbound', name: 'Unbound', turns: e.turns, data: { stats: { PWR: e.pwr } } });
+          this.log(`${actor.name} will not be bound again — control-immune, PWR up.`, 'buff');
+          break;
       }
+    }
+
+    // Maelstrom: while an awakened storm stands on this side, control slips
+    controlSlipFor(defender) {
+      for (const a of this.alliesOf(defender)) {
+        const aw = this.getStatus(a, 'awaken');
+        if (aw && aw.data.controlSlip) return aw.data.controlSlip;
+      }
+      return 1;
     }
 
     advance(actor, weight) {
@@ -666,6 +731,26 @@
         if (r < 0.25 && foes.length > 1) return { type: 'skill', skillId: 'wardenfall' };
         if (r < 0.6) return { type: 'skill', skillId: 'aspect_surge', targetUid: target.uid };
         return { type: 'skill', skillId: 'aspect_strike', targetUid: target.uid };
+      }
+
+      if (actor.def.ai === 'sergeant') {
+        const r = F.rand();
+        const collarable = foes.filter((f) => !this.hasStatus(f, 'seal') && !this.hasStatus(f, 'unbound'));
+        if (actor.turnCount - actor.lastSealTurn >= 3 && collarable.length && r < 0.55) {
+          actor.lastSealTurn = actor.turnCount;
+          return { type: 'skill', skillId: 'collar_toss', targetUid: pick(collarable).uid };
+        }
+        if (r < 0.3 && foes.length > 2) return { type: 'skill', skillId: 'suppression_volley' };
+        return { type: 'skill', skillId: 'iron_writ', targetUid: target.uid };
+      }
+
+      if (actor.def.ai === 'bindwright') {
+        const r = F.rand();
+        const sealable = foes.filter((f) => !this.hasStatus(f, 'seal') && !this.hasStatus(f, 'unbound'));
+        if (r < 0.35 && sealable.length) return { type: 'skill', skillId: 'shackle_writ', targetUid: pick(sealable).uid };
+        const unburdened = foes.filter((f) => !this.hasStatus(f, 'leaden'));
+        if (r < 0.7 && unburdened.length) return { type: 'skill', skillId: 'leaden_writ', targetUid: pick(unburdened).uid };
+        return { type: 'skill', skillId: 'censer_lash', targetUid: target.uid };
       }
 
       if (actor.def.ai === 'proctor') {

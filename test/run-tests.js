@@ -213,6 +213,131 @@ console.log('— Earl attune / rupture refund —');
   check('attuned Prism Lance ruptures Ember', hit.affinity, 'rupture');
 }
 
+console.log('— Mael: Defiance (adversity-fed) —');
+{
+  F.setRng(seeded(21));
+  const b = new WS.Battle(WS.BATTLES.retrieval, {});
+  const mael = b.party.find((u) => u.defId === 'mael');
+  const siren = b.party.find((u) => u.defId === 'siren');
+  const sergeant = b.enemies.find((u) => u.defId === 'bind_sergeant');
+  const hound = b.enemies.find((u) => u.defId === 'chainhound_construct');
+
+  check('retrieval fields a party of 5', b.party.length, 5);
+  check('default battles stay a party of 4', new WS.Battle(WS.BATTLES.sparring, {}).party.length, 4);
+  check('Mael L1 HP = 166 (cast doc)', F.maxHp(15, 1), 166);
+  check('six enemies — the party is outnumbered', b.enemies.length, 6);
+
+  // no passive fill: Defiance rises only from adversity
+  for (const u of b.units) u.nextTurn = u === mael ? 0 : 999;
+  b.beginTurn();
+  check('Defiance has no passive fill on his turn', mael.gauge.value, 0);
+
+  // +8 hit taken
+  b.applyDamage(mael, { dmg: 20, crit: false, affinity: 'neutral' }, sergeant);
+  check('hit taken feeds Defiance +8', mael.gauge.value, 8);
+
+  // +10 when a debuff lands, and the debuff actually bites
+  b.applyEffect(b.enemies[1], WS.ENEMIES.bindwright.skills.find((s) => s.id === 'leaden_writ').effects[0],
+    {}, mael.uid, {});
+  check('debuff landing feeds Defiance +10', mael.gauge.value, 18);
+  check('Leaden cuts PWR by 20%', b.stat(mael, 'PWR'), mael.stats.PWR * 0.8);
+
+  // +2 per enemy action while outnumbered (6 living enemies > 5 living party)
+  for (const u of b.units) u.nextTurn = u === hound ? 0 : 999;
+  b.beginTurn();
+  check('outnumbered: enemy action feeds Defiance +2', mael.gauge.value, 20);
+
+  // Break: cleanse own debuffs, control-immunity, +25% PWR
+  b.addStatus(mael, { id: 'seal', name: 'Seal', turns: 2, harmful: true, data: {} });
+  check('Seal landing on him feeds Defiance too', mael.gauge.value, 30);
+  b.act(mael, { type: 'skill', skillId: 'break' });
+  check('Break spends 30 Defiance', mael.gauge.value, 0);
+  check('Break cleansed his Seal', b.hasStatus(mael, 'seal'), false);
+  check('Break cleansed his Leaden', b.hasStatus(mael, 'leaden'), false);
+  check('Break leaves him Unbound', b.hasStatus(mael, 'unbound'), true);
+  check('Unbound: +25% PWR', b.stat(mael, 'PWR'), mael.stats.PWR * 1.25);
+  b.applyEffect(sergeant, { type: 'seal', chance: 100, turns: 2 }, {}, mael.uid, {});
+  check('Unbound: Seal cannot touch him', b.hasStatus(mael, 'seal'), false);
+  const nt = mael.nextTurn;
+  b.applyEffect(hound, { type: 'freeze', chance: 100, push: 0.5 }, {}, mael.uid, {});
+  check('Unbound: Freeze cannot hold him', mael.nextTurn, nt);
+
+  // Unshackle: frees an ally; not himself; never Bloodrun
+  b.addStatus(siren, { id: 'seal', name: 'Seal', turns: 2, harmful: true, data: {} });
+  mael.gauge.value = 25;
+  b.act(mael, { type: 'skill', skillId: 'unshackle', targetUid: siren.uid });
+  check('Unshackle frees the ally', b.hasStatus(siren, 'seal'), false);
+  const unshackle = mael.def.skills.find((s) => s.id === 'unshackle');
+  check('Unshackle cannot target himself',
+    b.validTargets(mael, unshackle).includes(mael), false);
+  const cinne = b.party.find((u) => u.defId === 'cinne');
+  b.addGauge(cinne, 100, 'test');
+  check('Unshackle cannot reach Bloodrun',
+    b.validTargets(mael, unshackle).includes(cinne), false);
+
+  // Amplify formula: 210 + PWR×2 (L11 PWR 45 → 300)
+  const storm = mael.def.skills.find((s) => s.id === 'stormbreak');
+  check('[Stormbreak] power = 210 + PWR×2', storm.power(mael), 300);
+}
+
+console.log('— Mael: Maelstrom control-slip —');
+{
+  F.setRng(seeded(23));
+  const b = new WS.Battle(WS.BATTLES.retrieval, {});
+  const mael = b.party.find((u) => u.defId === 'mael');
+  const earl = b.party.find((u) => u.defId === 'earl');
+  const sergeant = b.enemies.find((u) => u.defId === 'bind_sergeant');
+  const sealFx = WS.ENEMIES.bind_sergeant.skills.find((s) => s.id === 'collar_toss').effects[0];
+
+  // chance 75 vs Earl (LCK 32) from the sergeant (LCK 12) = 55%. A 50-roll
+  // lands without the Maelstrom, slips (27.5%) with it.
+  F.setRng(() => 0.5);
+  b.applyEffect(sergeant, sealFx, {}, earl.uid, {});
+  check('without Maelstrom the collar lands', b.hasStatus(earl, 'seal'), true);
+  b.removeStatus(earl, b.getStatus(earl, 'seal'));
+  b.addStatus(mael, { id: 'awaken', name: 'Maelstrom', turns: 4, data: { controlSlip: 0.5 } });
+  b.applyEffect(sergeant, sealFx, {}, earl.uid, {});
+  check('with Maelstrom up the collar slips', b.hasStatus(earl, 'seal'), false);
+}
+
+console.log('— Mael: combos —');
+{
+  F.setRng(seeded(29));
+  const events = [];
+  const b = new WS.Battle(WS.BATTLES.retrieval, { onEvent: (e) => events.push(e) });
+  const mael = b.party.find((u) => u.defId === 'mael');
+  const earl = b.party.find((u) => u.defId === 'earl');
+  const cinne = b.party.find((u) => u.defId === 'cinne');
+  const sergeant = b.enemies.find((u) => u.defId === 'bind_sergeant');
+
+  // absent partners: in the founding-four battles Mael's combos don't appear
+  const four = new WS.Battle(WS.BATTLES.sparring, {});
+  const earl4 = four.party.find((u) => u.defId === 'earl');
+  check('Mael combos hidden without Mael',
+    !!four.combosFor(earl4).find((c) => ['just_me', 'never_will_be'].includes(c.combo.id)), false);
+
+  // "You don't have to be anything": unattuned Earl strikes the Ember sergeant
+  // with his true element — Tide — and Ruptures without any Attune setup
+  mael.gauge.value = 30; earl.gauge.value = 20;
+  check('Earl is unattuned', earl.attuned, null);
+  events.length = 0;
+  b.act(mael, { type: 'combo', comboId: 'just_me', targetUid: sergeant.uid });
+  const jm = events.filter((e) => e.type === 'damage');
+  check('“Just me” lands one strike', jm.length, 1);
+  check('…and it Ruptures with no Attune', jm[0].rupture, true);
+  check('…costing Mael 25 Defiance', mael.gauge.value, 5);
+
+  // "You're not like them": crit-storm + tempest, Tide then Gale, 5 hits
+  cinne.gauge.value = 45; mael.gauge.value = 45;
+  events.length = 0;
+  b.act(cinne, { type: 'combo', comboId: 'never_will_be', targetUid: sergeant.uid });
+  const nlt = events.filter((e) => e.type === 'damage');
+  check('“Not like them” lands 5 hits', nlt.length, 5);
+  check('…the Tide hit Ruptures the Ember sergeant', nlt.some((e) => e.rupture), true);
+  check('…spending 40 Defiance', mael.gauge.value, 5);
+  check('…and 40 Rage (plus on-hit gains)', cinne.gauge.value < 45, true);
+}
+
 console.log('— auto-battle simulations —');
 // random-but-valid player policy; proves fights terminate and systems fire
 function randomAction(b, actor) {
@@ -270,6 +395,26 @@ for (const id of ['gauntlet', 'proctor', 'retinue']) {
   }
   check(`${id} is winnable`, wins > 0, true);
   console.log(`  ${id}: random-play win rate ${wins}/${total}`);
+}
+{
+  // the Retrieval Detail: Mael's systems must actually fire in play
+  let wins = 0, total = 10, sawUnbound = false, sawSeal = false, maxDefiance = 0;
+  for (let seed = 1; seed <= total; seed++) {
+    const s = simulate('retrieval', seed);
+    check(`retrieval #${seed} terminates`, s.result !== 'active', true);
+    if (s.result === 'victory') wins++;
+    for (const e of s.events) {
+      if (e.type === 'status' && e.id === 'unbound') sawUnbound = true;
+      if (e.type === 'status' && e.id === 'seal') sawSeal = true;
+      if (e.type === 'gauge' && e.reason &&
+        ['outnumbered', 'defied', 'ally down'].includes(e.reason)) maxDefiance = Math.max(maxDefiance, e.value);
+    }
+  }
+  check('retrieval is winnable', wins > 0, true);
+  check('the detail lands its Seals', sawSeal, true);
+  check('Mael Breaks his bindings across sims', sawUnbound, true);
+  check('adversity feeds Defiance across sims', maxDefiance > 0, true);
+  console.log(`  retrieval: random-play win rate ${wins}/${total}, peak adversity-fed Defiance ${Math.round(maxDefiance)}`);
 }
 {
   let wins = 0, total = 20, maxTurns = 0, sawAspect = false, sawBloodrun = false, sawAmplify = false, sawSeal = false;

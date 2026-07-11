@@ -5,12 +5,13 @@
   const $ = (sel) => document.querySelector(sel);
 
   const CHAR_COLORS = {
-    siren: '#3fa7d6', cinne: '#8ee06e', earl: '#c9b8ff', katarina: '#e8a33d',
+    siren: '#3fa7d6', cinne: '#8ee06e', earl: '#c9b8ff', katarina: '#e8a33d', mael: '#4db6ac',
   };
-  const GAUGE_COLORS = { resonance: '#3fa7d6', rage: '#e3405f', fervor: '#e8a33d' };
+  const GAUGE_COLORS = { resonance: '#3fa7d6', rage: '#e3405f', fervor: '#e8a33d', defiance: '#4db6ac' };
   const ENEMY_GLYPHS = {
     sparring_construct: '⚙', stoneline_construct: '🛡', galeline_construct: '🌀',
     academy_proctor: '⚖', aspect_warden: '👁', tidebound_shard: '💠', stonebound_shard: '⬢',
+    bind_sergeant: '🔒', bindwright: '⛓', chainhound_construct: '🐺',
   };
 
   const DELAYS = {
@@ -122,7 +123,7 @@
         `<span class="status-chip shield">🛡 ${u.shield}</span>`);
       for (const s of u.statuses) {
         if (s.id === 'mark') { chips.insertAdjacentHTML('beforeend', '<span class="status-chip">◎ Opening</span>'); continue; }
-        const cls = { seal: 'seal', awaken: 'awaken', bloodrun: 'bloodrun' }[s.id] || '';
+        const cls = { seal: 'seal', awaken: 'awaken', bloodrun: 'bloodrun', unbound: 'awaken', leaden: 'seal' }[s.id] || '';
         chips.insertAdjacentHTML('beforeend',
           `<span class="status-chip ${cls}">${s.name}${s.turns < 90 ? ' ' + s.turns : ''}</span>`);
       }
