@@ -3,9 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>What Survives</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
+  <title>What Survives — Combat Prototype</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -17,7 +15,6 @@
       <p class="tagline">Read the weakness. Feed the gauge. Decide what the spirit becomes.</p>
       <div id="battle-select"></div>
       <p class="hint">CTB turn order &middot; Rupture = opposite element, 2&times; damage + gauge &middot; at 100: Awaken or Amplify</p>
-      <p class="hint alt-link"><a href="classic.html">text-mode client</a></p>
     </div>
   </div>
 
@@ -25,12 +22,13 @@
     <div id="queue-bar">
       <span class="queue-label">NEXT</span>
       <div id="queue"></div>
-      <button id="mute-btn" title="Toggle sound">🔊</button>
       <button id="speed-btn" title="Toggle animation speed">1&times;</button>
     </div>
 
     <div id="stage">
-      <div id="battlefield"></div>
+      <div id="battlefield">
+        <div id="enemy-zone"></div>
+      </div>
       <div id="log-panel"><div id="log"></div></div>
     </div>
 
@@ -57,7 +55,6 @@
     <div id="flash"></div>
   </div>
 
-  <script src="js/vendor/phaser.min.js"></script>
   <script src="js/data/elements.js"></script>
   <script src="js/engine/formulas.js"></script>
   <script src="js/data/characters.js"></script>
@@ -65,10 +62,6 @@
   <script src="js/data/combos.js"></script>
   <script src="js/engine/battle.js"></script>
   <script src="js/ui/ui.js"></script>
-  <script src="js/ui/sfx.js"></script>
-  <script src="js/ui/sprites.js"></script>
-  <script src="js/ui/stage.js"></script>
-  <script src="js/ui/stage-ui.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

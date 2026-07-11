@@ -294,7 +294,7 @@
       this.emit('damage', {
         uid: target.uid, amount: hit.dmg, absorbed, crit: hit.crit,
         rupture: hit.affinity === 'rupture', resist: hit.affinity === 'resist',
-        hp: target.hp,
+        element: hit.element, hp: target.hp,
       });
 
       if (hit.affinity === 'rupture') this.log(`RUPTURE! ${hit.dmg} damage to ${target.name}!`, 'rupture');

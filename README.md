@@ -2,11 +2,19 @@
 
 One playable turn-based battle in the browser, built to the spec in
 [docs/CLAUDE_CODE_HANDOFF.md](docs/CLAUDE_CODE_HANDOFF.md). Plain HTML/CSS/JS,
-no build step, no dependencies.
+no build step; Phaser 3 is vendored in `js/vendor/` for the battle stage.
 
 ## Play it
 
 Open `index.html` in a browser (double-click works — no server needed).
+Battles render on a **Phaser stage** — pixel battlers on painted backdrops,
+with the full juice ladder (lunges, hit bursts, camera shake, Amplify
+cut-ins, synthesized SFX) per
+[docs/art_direction_v0.1.md](docs/art_direction_v0.1.md). The original
+text-mode client is preserved at `classic.html`.
+
+Dev hooks: `index.html?battle=sparring` jumps straight into a battle;
+add `&demo=1` and the party plays itself (screenshot/soak aid).
 
 Six battles from the title screen, in difficulty order:
 
@@ -44,15 +52,22 @@ and spent breaking control: his own (**Break**) or an ally's (**Unshackle**).
 ## Repo layout
 
 ```
-index.html            battle client (GitHub Pages entry point)
+index.html            battle client, Phaser stage (GitHub Pages entry point)
+classic.html          the original text-mode client (same engine, no canvas)
 css/style.css
+js/vendor/phaser.min.js   Phaser 3.90, vendored (no build step, works offline)
 js/data/              elements, characters, enemies — ALL tuning numbers live here
 js/engine/            formulas.js (math), battle.js (CTB, damage, gauges, statuses, AI)
-js/ui/ui.js           rendering, event playback, command menus
-js/main.js            title screen + turn loop
+js/ui/ui.js           classic DOM rendering, event playback, command menus
+js/ui/sprites.js      generated pixel battlers + painted backdrops (art doc §9)
+js/ui/stage.js        Phaser scene: battlers, placement, the juice ladder
+js/ui/stage-ui.js     StageUI extends UI: playback → stage effects + SFX
+js/ui/sfx.js          synthesized WebAudio sound (no assets)
+js/main.js            title screen + turn loop (+ ?battle= / &demo=1 dev hooks)
 test/run-tests.js     node test suite (unit tests + seeded auto-battle sims)
 test/autoplay.html    soak tool: party plays itself (?battle=warden&mode=menu)
-docs/                 the five design docs — CLAUDE_CODE_HANDOFF.md is the spec
+docs/                 design docs — CLAUDE_CODE_HANDOFF.md is the spec,
+                      art_direction_v0.1.md is the look
 ```
 
 ## Testing
@@ -155,6 +170,17 @@ Everything numeric is in `js/data/` — tune there, logic never has to change.
    100 in 8% of random-play fights — under random play he vents at 25/30
    constantly, so `[Stormbreak]`/Maelstrom are things a deliberate player
    *banks* for. That's the intended ride-or-vent choice, left as is.
+
+11. **Presentation layer (milestone 10): Phaser 3, vendored, generated art.**
+   Engine untouched (it was already UI-agnostic via `onEvent`; the only change
+   was adding `element` to damage events so hit bursts can be element-colored).
+   `StageUI` subclasses the classic `UI` — menus/cards/log inherited, battlers
+   and playback on canvas. Framework decision: Phaser over Godot/Unity because
+   the JS engine + tests port for free and the browser playtest loop stays.
+   Battler art is **generated placeholder pixel art** (silhouette-and-signal
+   style, `docs/art_direction_v0.1.md`) drawn onto canvas textures at runtime —
+   swapping in commissioned sprite sheets later needs no code changes beyond
+   the texture loader. SFX are synthesized (WebAudio); music deferred.
 
 ## What's next (handoff milestone 9+)
 

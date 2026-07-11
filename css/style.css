@@ -259,3 +259,22 @@ body {
   border-radius: 8px; padding: 10px 26px; font-size: 15px; cursor: pointer;
 }
 #end-buttons button:hover { border-color: #3fa7d6; }
+
+/* ---------- Phaser stage (index.html; classic.html never loads the canvas) ---------- */
+#battlefield { overflow: hidden; }
+#battlefield canvas { display: block; image-rendering: pixelated; }
+#mute-btn {
+  background: var(--panel); color: var(--dim); border: 1px solid var(--line);
+  border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 12px;
+}
+#mute-btn:hover { color: var(--text); }
+.alt-link { margin-top: 14px; }
+.alt-link a { color: #55617a; }
+.alt-link a:hover { color: var(--text); }
+
+/* display type: serif italic, liturgical (art_direction §7) */
+#title-screen h1, #banner, #end-text {
+  font-family: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+}
+#cin-cue { font-family: "Cormorant Garamond", Georgia, serif; font-size: 48px; }
+#cin-name { color: var(--gold); }
