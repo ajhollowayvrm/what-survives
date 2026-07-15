@@ -35,6 +35,21 @@ Six battles from the title screen, in difficulty order:
 - **Warden and Retinue** (level 14) — the Warden flanked by a Tidebound and
   a Stonebound Shard. The hard run (~1 party KO per fight even in sims).
 
+### Explore (the game layer — framework, milestone 11)
+
+A **▸ Explore the Academy (demo)** button on the title screen (or
+`index.html?map=academy_courtyard`) drops you into a **walkable overworld**:
+arrow keys / WASD to move a tile at a time, **Enter** to interact. Talk to the
+NPCs (Earl, the Proctor), and step into the glowing **sparring ring** to hand
+off into the real Sparring Match — win or lose, you return to exactly where you
+stood. A door and a north gate show the trigger system.
+
+This is the *framework*, not the story: maps are pure data in
+`js/data/maps.js` (a character grid + legend + NPCs + triggers), the engine is
+`js/ui/overworld.js`, and it's wired to battles by `js/main.js` — all decoupled
+the same way the battle Stage is, so authoring new areas and stitching in the
+Acts 0–7 story (`docs/story_structure_v0.1.md`) needs data, not engine changes.
+
 ### The loop, in one paragraph
 
 Turn order is tick-based CTB (high AGI acts more often; heavy moves cost
@@ -56,14 +71,17 @@ index.html            battle client, Phaser stage (GitHub Pages entry point)
 classic.html          the original text-mode client (same engine, no canvas)
 css/style.css
 js/vendor/phaser.min.js   Phaser 3.90, vendored (no build step, works offline)
-js/data/              elements, characters, enemies — ALL tuning numbers live here
+js/data/              elements, characters, enemies, maps — ALL tuning lives here
 js/engine/            formulas.js (math), battle.js (CTB, damage, gauges, statuses, AI)
 js/ui/ui.js           classic DOM rendering, event playback, command menus
 js/ui/sprites.js      generated pixel battlers + painted backdrops (art doc §9)
 js/ui/stage.js        Phaser scene: battlers, placement, the juice ladder
 js/ui/stage-ui.js     StageUI extends UI: playback → stage effects + SFX
+js/ui/overworld.js    Phaser scene: walkable tile map, NPCs, triggers (the game layer)
+js/ui/dialogue.js     DOM dialogue box (say / confirm), used by the overworld
 js/ui/sfx.js          synthesized WebAudio sound (no assets)
-js/main.js            title screen + turn loop (+ ?battle= / &demo=1 dev hooks)
+js/main.js            controller: title / overworld / battle + the flow between them
+                      (+ ?battle= / ?map= / &demo=1 dev hooks)
 test/run-tests.js     node test suite (unit tests + seeded auto-battle sims)
 test/autoplay.html    soak tool: party plays itself (?battle=warden&mode=menu)
 docs/                 design docs — CLAUDE_CODE_HANDOFF.md is the spec,
@@ -182,8 +200,28 @@ Everything numeric is in `js/data/` — tune there, logic never has to change.
    swapping in commissioned sprite sheets later needs no code changes beyond
    the texture loader. SFX are synthesized (WebAudio); music deferred.
 
+12. **The game layer begins (milestone 11): a walkable overworld, framework
+   first.** The battle prototype is now wrapped by an exploration layer — the
+   first connective tissue that turns six isolated test battles into something
+   you *move through*. Chose overworld/exploration over VN-style story-mode and
+   over meta/progression, and chose to build the engine + a data-driven map
+   format before authoring story. `main.js` became a three-screen controller
+   (title / overworld / battle); the overworld is a second Phaser scene that
+   reuses the existing generated battler art for the player and NPCs, so no new
+   art pipeline. **Kept decoupled on purpose:** the overworld emits `onTalk` /
+   `onTrigger` intents and knows nothing about battles — the controller wires
+   the handoff — mirroring how the Stage never mutates battle state. First-pass
+   numbers (tile size 40, step 130 ms, camera zoom 1.35, one tile tall sprites)
+   are eyeball values, expect playtest tuning. Movement is 4-directional and
+   grid-locked; the reused side-facing sprites don't have up/down frames yet
+   (they keep the last horizontal facing) — fine for the framework, a real
+   4-way walk sheet is a later art pass.
+
 ## What's next (handoff milestone 9+)
 
+- **Overworld content:** author the opening scene flow (Prologue → Academy) as
+  real maps + dialogue over this framework; more tile decorators / a proper
+  walk-cycle sprite sheet; map-to-map transitions (the `changeMap` trigger kind)
 - Status effect set (Burn/Poison/Weaken/Guard Break) and elemental statuses
 - Amplify cost decay with attunement; bench/reserve system
 - Story-gating for combo unlocks; "realness" progression on Earl from the

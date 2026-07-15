@@ -15,10 +15,23 @@
       <p class="title-over">A PARTY-BASED JRPG — COMBAT PROTOTYPE</p>
       <h1>WHAT SURVIVES</h1>
       <p class="tagline">Read the weakness. Feed the gauge. Decide what the spirit becomes.</p>
+      <button id="explore-btn" class="explore-btn">▸ Explore the Academy (demo)</button>
       <div id="battle-select"></div>
       <p class="hint">CTB turn order &middot; Rupture = opposite element, 2&times; damage + gauge &middot; at 100: Awaken or Amplify</p>
       <p class="hint alt-link"><a href="classic.html">text-mode client</a></p>
     </div>
+  </div>
+
+  <div id="overworld-screen" class="screen hidden">
+    <div id="overworld-canvas"></div>
+    <div id="ow-name"></div>
+    <div id="ow-controls">Arrows / WASD to move &middot; Enter to interact</div>
+    <div id="dialogue-box" class="hidden">
+      <div id="dialogue-name"></div>
+      <div id="dialogue-text"></div>
+      <div id="dialogue-hint">▸ Enter</div>
+    </div>
+    <button id="ow-exit-btn" title="Back to title">✕</button>
   </div>
 
   <div id="battle-screen" class="screen hidden">
@@ -63,12 +76,15 @@
   <script src="js/data/characters.js"></script>
   <script src="js/data/enemies.js"></script>
   <script src="js/data/combos.js"></script>
+  <script src="js/data/maps.js"></script>
   <script src="js/engine/battle.js"></script>
   <script src="js/ui/ui.js"></script>
   <script src="js/ui/sfx.js"></script>
   <script src="js/ui/sprites.js"></script>
   <script src="js/ui/stage.js"></script>
   <script src="js/ui/stage-ui.js"></script>
+  <script src="js/ui/dialogue.js"></script>
+  <script src="js/ui/overworld.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
